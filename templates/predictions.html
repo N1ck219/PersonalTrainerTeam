@@ -28,14 +28,89 @@
             </div>
         </header>
 
-        <!-- INTRO NOTE -->
-        <div class="glass-card" style="margin-bottom: 1.5rem;">
-            <h2 class="card-title" style="border-left-color: var(--color-cyan);">La Formula di Riegel</h2>
-            <p style="font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary); margin: 0;">
-                Le predizioni sottostanti sono calcolate tramite la formula fisiologica di **Riegel**:
-                <code style="background: rgba(255,255,255,0.06); padding: 0.2rem 0.4rem; border-radius: 4px; color: var(--color-purple); font-family: monospace;">T2 = T1 * (D2 / D1)^1.06</code>,
-                dove la tua migliore prestazione recente (velocità/passo migliore su distanze maggiori di 4.5 km) viene presa come riferimento per stimare i tempi su altre distanze classiche.
-            </p>
+        <!-- INTRO NOTE & PHYSIOLOGICAL METRICS -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <!-- Left: Calculations explanation -->
+            <div class="glass-card" style="margin: 0; display: flex; flex-direction: column; justify-content: center;">
+                <h2 class="card-title" style="border-left-color: var(--color-cyan); margin-bottom: 0.75rem;">Calcolo Predizioni Avanzato</h2>
+                <p style="font-size: 0.85rem; line-height: 1.6; color: var(--text-secondary); margin: 0;">
+                    Le stime dei tempi di gara sono calcolate tramite la formula fisiologica di **Riegel** adattata:
+                    <code style="background: rgba(255,255,255,0.06); padding: 0.2rem 0.4rem; border-radius: 4px; color: var(--color-purple); font-family: monospace;">T2 = T1 * (D2 / D1)^{{ predictions["b_exponent"] }}</code>.
+                </p>
+                <p style="font-size: 0.82rem; line-height: 1.5; color: var(--text-muted); margin-top: 0.5rem;">
+                    Invece di utilizzare un esponente statico (1.06), il sistema calcola dinamicamente l'esponente di decadimento del passo basandosi sul tuo volume di allenamento settimanale medio recente. Un volume maggiore indica una migliore base aerobica, riducendo l'esponente (fase di decadimento inferiore sulle lunghe distanze).
+                </p>
+            </div>
+
+            <!-- Right: VO2Max & Riegel Metrics -->
+            <div class="glass-card" style="margin: 0; background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%); border: 1px solid rgba(139, 92, 246, 0.2);">
+                <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.9rem; font-weight: 700; color: #fff; margin: 0 0 0.75rem 0; text-align: left;">📊 Parametri Fisiologici</h3>
+                <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.8rem; text-align: left;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.30rem;">
+                        <span style="color: var(--text-secondary);">Stima VO2Max</span>
+                        <strong style="color: var(--color-cyan); font-size: 0.9rem;">{{ predictions["vo2max"] }} ml/kg/min</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.30rem;">
+                        <span style="color: var(--text-secondary);">Esponente Riegel (b)</span>
+                        <strong style="color: var(--color-purple);">{{ predictions["b_exponent"] }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.30rem;">
+                        <span style="color: var(--text-secondary);">Volume Medio (30gg)</span>
+                        <strong style="color: var(--color-green);">{{ predictions["weekly_volume_avg"] }} km/sett</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted);">
+                        <span>FC Max: {{ predictions["max_hr_real"] }} bpm &middot; FC Riposo: {{ predictions["resting_hr_avg"] }} bpm</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAPERING ADVISOR -->
+        <div class="glass-card" style="margin-bottom: 2rem;">
+            <h2 class="card-title" style="border-left-color: var(--color-pink);">📅 Consulente di Tapering Pre-Gara (Tapering Advisor)</h2>
+            {% if tapering["has_race"] %}
+                {% if tapering["is_tapering"] %}
+                <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                    Mancano <strong>{{ tapering["days_to_race"] }} giorni</strong> alla tua prossima gara target: <strong style="color: var(--color-pink);">{{ tapering["race_name"] }}</strong>. Sei nella fase di scarico attivo:
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    {% for week in tapering["weeks_tapering"] %}
+                    <div style="background: {% if week['is_current'] %}rgba(236, 72, 153, 0.08){% else %}rgba(255, 255, 255, 0.01){% endif %}; border: 1px solid {% if week['is_current'] %}var(--color-pink){% else %}rgba(255, 255, 255, 0.04){% endif %}; border-radius: 12px; padding: 1.25rem; position: relative;">
+                        {% if week['is_current'] %}
+                        <span style="position: absolute; top: 0.75rem; right: 0.75rem; background: var(--color-pink); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 4px; text-transform: uppercase;">In Corso</span>
+                        {% endif %}
+                        <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.95rem; font-weight: 700; color: #fff; margin: 0 0 0.5rem 0;">
+                            Settimana {{ week["week"] }} prima della gara
+                        </h3>
+                        <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-purple); font-family: 'Montserrat', sans-serif; margin-bottom: 0.5rem;">
+                            {{ week["volume_km"] }} km <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);">volume target</span>
+                        </div>
+                        <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                            {{ week["description"] }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="padding: 1.5rem 1.25rem; background: rgba(255, 255, 255, 0.01); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; gap: 1rem;">
+                    <span style="font-size: 2.2rem;">⏳</span>
+                    <div>
+                        <h4 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.05rem; font-weight: 700; color: #fff;">Prossimo obiettivo: {{ tapering["race_name"] }}</h4>
+                        <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+                            Mancano <strong>{{ tapering["days_to_race"] }} giorni</strong> alla gara. Il tuo tapering personalizzato inizierà tra <strong style="color: var(--color-pink); font-size: 1rem;">{{ tapering["weeks_to_taper"] }} settimane</strong>.
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+            {% else %}
+            <div style="text-align: center; padding: 1.5rem 1rem; background: rgba(255,255,255,0.01); border-radius: 10px; border: 1px solid rgba(255,255,255,0.03);">
+                <span style="font-size: 1.8rem; display: block; margin-bottom: 0.5rem;">📅</span>
+                <h4 style="margin: 0 0 0.25rem 0; font-size: 0.88rem; color: #fff;">Nessuna gara imminente programmata</h4>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">
+                    Programma un allenamento di tipo "gara" o scrivi in chat al tuo Trainer per registrare la data del tuo prossimo obiettivo e attivare la pianificazione del tapering.
+                </p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- PREDICTIONS GRID -->
@@ -134,6 +209,9 @@
                 </a>
                 <a href="/pain-log" class="sidebar-nav-link">
                     <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+                <a href="/nutrition" class="sidebar-nav-link">
+                    <span class="nav-icon">🥗</span> Alimentazione
                 </a>
             </div>
 

@@ -20,7 +20,7 @@ from parser.parser import generate_mock_workout_data, parse_gpx_workout
 from agents.workflow import run_agent_pipeline
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 telegram_app = None
 
@@ -387,11 +387,39 @@ def get_personal_records(db: Session) -> dict:
     }
 
 def get_race_predictions(db: Session) -> dict:
-    # Baseline PB 10k: 48:55 (2935 sec), Half: 1:47:00 (6420 sec)
-    # Riegel's formula: T2 = T1 * (D2 / D1)^1.06
+    # 1. Calculate average weekly volume over the last 30 days
+    thirty_days_ago = datetime.date.today() - datetime.timedelta(days=30)
+    total_km_30d = db.query(func.sum(WorkoutExecuted.distance_km)).filter(WorkoutExecuted.date >= thirty_days_ago).scalar() or 0.0
+    avg_weekly_vol = float((total_km_30d / 30.0) * 7.0)
+
+    # 2. Adjust Riegel exponent b based on weekly volume (aerobic base)
+    if avg_weekly_vol >= 40.0:
+        b_val = 1.04  # High volume = less pace degradation over distance
+    elif avg_weekly_vol >= 30.0:
+        b_val = 1.06  # Standard baseline
+    elif avg_weekly_vol >= 15.0:
+        b_val = 1.09  # Medium-low volume
+    else:
+        b_val = 1.12  # Low volume = significant pace degradation over distance
+
+    # 3. Estimate VO2Max using Uth formula: 15.3 * (max_hr / resting_hr)
+    max_hr_db = db.query(func.max(WorkoutExecuted.max_hr)).scalar()
+    if not max_hr_db or max_hr_db < 100:
+        max_hr_db = 204  # Default baseline for 24-year-old athlete
+
+    seven_days_ago = datetime.date.today() - datetime.timedelta(days=7)
+    avg_resting_hr = db.query(func.avg(DailyMetric.resting_hr)).filter(
+        DailyMetric.date >= seven_days_ago, 
+        DailyMetric.resting_hr.isnot(None)
+    ).scalar()
+    if not avg_resting_hr or avg_resting_hr < 30:
+        avg_resting_hr = 56.0  # Default athlete resting HR baseline
+
+    vo2max = 15.3 * (max_hr_db / float(avg_resting_hr))
+
+    # 4. Find the best workout of the last 60 days to base predictions on (min pace)
     workouts = db.query(WorkoutExecuted).filter(WorkoutExecuted.distance_km >= 4.5, WorkoutExecuted.avg_pace > 0).all()
     
-    # We find the workout that gives the best (minimum) pace per km
     best_workout = None
     best_pace = 9999.0
     for w in workouts:
@@ -403,12 +431,12 @@ def get_race_predictions(db: Session) -> dict:
         d_ref = best_workout.distance_km
         t_ref = d_ref * best_workout.avg_pace
     else:
-        # Fallback to 10k PB: 48:55
+        # Fallback to 10k PB: 48:55 (2935 sec)
         d_ref = 10.0
         t_ref = 2935.0
         
     def predict_time_and_pace(d_target: float) -> tuple:
-        t_target = t_ref * ((d_target / d_ref) ** 1.06)
+        t_target = t_ref * ((d_target / d_ref) ** b_val)
         pace_target_sec = t_target / d_target
         
         # Format time
@@ -433,6 +461,11 @@ def get_race_predictions(db: Session) -> dict:
     t_mara, p_mara = predict_time_and_pace(42.195)
     
     return {
+        "b_exponent": round(b_val, 2),
+        "vo2max": round(vo2max, 1),
+        "weekly_volume_avg": round(avg_weekly_vol, 1),
+        "max_hr_real": max_hr_db,
+        "resting_hr_avg": round(float(avg_resting_hr), 1),
         "5k": {"time": t_5k, "pace": p_5k},
         "10k": {"time": t_10k, "pace": p_10k},
         "mezza": {"time": t_half, "pace": p_half},
@@ -440,13 +473,306 @@ def get_race_predictions(db: Session) -> dict:
     }
 
 
+def calculate_workout_tss(workout: WorkoutExecuted, resting_hr: float, max_hr: float) -> float:
+    """
+    Calculates Training Stress Score (TSS) for a workout.
+    Uses heart-rate based formula if heart rate data is present.
+    Falls back to RPE-based estimation if heart rate is missing.
+    """
+    duration_min = (workout.distance_km * (workout.avg_pace or 300.0)) / 60.0
+    if duration_min <= 0:
+        duration_min = 40.0
+        
+    avg_hr = None
+    if workout.laps_summary:
+        hr_vals = [l["avg_hr"] for l in workout.laps_summary if l.get("avg_hr")]
+        if hr_vals:
+            avg_hr = sum(hr_vals) / len(hr_vals)
+            
+    if not avg_hr and workout.max_hr:
+        avg_hr = workout.max_hr - 15
+        
+    if avg_hr and avg_hr > 0 and max_hr > resting_hr:
+        reserve_pct = (avg_hr - resting_hr) / (max_hr - resting_hr)
+        reserve_pct = max(0.0, min(1.2, reserve_pct))
+        tss = (duration_min / 60.0) * (reserve_pct ** 2) * 100 * 1.15
+        return round(tss, 1)
+    else:
+        rpe = workout.rpe_score or 5
+        tss = duration_min * rpe * 1.4
+        return round(tss, 1)
+
+
+def get_training_load_history(db: Session, days_lookback: int = 60) -> dict:
+    """
+    Computes CTL, ATL, TSB trends for the last N days.
+    """
+    max_hr = get_max_hr(db)
+    
+    seven_days_ago = datetime.date.today() - datetime.timedelta(days=7)
+    avg_resting_hr = db.query(func.avg(DailyMetric.resting_hr)).filter(
+        DailyMetric.date >= seven_days_ago, 
+        DailyMetric.resting_hr.isnot(None)
+    ).scalar() or 56.0
+    
+    # Fetch all executed workouts from last 110 days to allow stable rolling averages
+    start_date = datetime.date.today() - datetime.timedelta(days=days_lookback + 45)
+    workouts = db.query(WorkoutExecuted).filter(WorkoutExecuted.date >= start_date).all()
+    
+    # Group TSS by date
+    daily_tss = {}
+    curr_d = start_date
+    today = datetime.date.today()
+    while curr_d <= today:
+        daily_tss[curr_d] = 0.0
+        curr_d += datetime.timedelta(days=1)
+        
+    for w in workouts:
+        if w.date in daily_tss:
+            daily_tss[w.date] += calculate_workout_tss(w, avg_resting_hr, max_hr)
+            
+    dates_sorted = sorted(list(daily_tss.keys()))
+    
+    ctl_dict = {}
+    atl_dict = {}
+    tsb_dict = {}
+    
+    for i, d in enumerate(dates_sorted):
+        ctl_slice = [daily_tss[dates_sorted[j]] for j in range(max(0, i - 41), i + 1)]
+        ctl_dict[d] = round(sum(ctl_slice) / 42.0, 1)
+        
+        atl_slice = [daily_tss[dates_sorted[j]] for j in range(max(0, i - 6), i + 1)]
+        atl_dict[d] = round(sum(atl_slice) / 7.0, 1)
+        
+        tsb_dict[d] = round(ctl_dict[d] - atl_dict[d], 1)
+        
+    plot_start = today - datetime.timedelta(days=days_lookback)
+    plot_dates = [d for d in dates_sorted if d >= plot_start]
+    
+    labels = [d.strftime("%d/%m") for d in plot_dates]
+    ctl_values = [ctl_dict[d] for d in plot_dates]
+    atl_values = [atl_dict[d] for d in plot_dates]
+    tsb_values = [tsb_dict[d] for d in plot_dates]
+    
+    # ACWR (Acute-to-Chronic Workload Ratio) using weekly km volume
+    d_7d_ago = today - datetime.timedelta(days=7)
+    d_28d_ago = today - datetime.timedelta(days=28)
+    
+    acute_volume = db.query(func.sum(WorkoutExecuted.distance_km)).filter(WorkoutExecuted.date >= d_7d_ago).scalar() or 0.0
+    chronic_volume_total = db.query(func.sum(WorkoutExecuted.distance_km)).filter(
+        WorkoutExecuted.date >= d_28d_ago
+    ).scalar() or 0.0
+    chronic_volume = chronic_volume_total / 4.0 if chronic_volume_total > 0 else 0.0
+    
+    if chronic_volume > 0:
+        acwr = round(float(acute_volume / chronic_volume), 2)
+    else:
+        acwr = 0.0
+        
+    if acwr >= 1.5:
+        acwr_status = "pericolo"
+        acwr_label = "Pericolo Infortunio (ACWR >= 1.50)"
+        acwr_advice = "Il tuo carico acuto è cresciuto troppo velocemente! Riduci l'intensità e la distanza per evitare infortuni muscolari."
+    elif acwr >= 1.3:
+        acwr_status = "sovraccarico"
+        acwr_label = "Sovraccarico Moderato (1.30 - 1.49)"
+        acwr_advice = "Stai spingendo al limite del range sicuro. Monitora i fastidi e assicurati di recuperare bene."
+    elif acwr >= 0.8:
+        acwr_status = "ottimale"
+        acwr_label = "Zona Ottimale (0.80 - 1.29)"
+        acwr_advice = "Ottimo lavoro! Il tuo carico di allenamento sta crescendo in modo sicuro e costante (Sweet Spot)."
+    else:
+        acwr_status = "sottoallenamento"
+        acwr_label = "Sotto-allenamento / Scarico (<0.80)"
+        acwr_advice = "Il carico è molto basso. Ottimo per il recupero post-gara o tapering, ma non incrementerà il tuo fitness."
+        
+    return {
+        "labels": labels,
+        "ctl": ctl_values,
+        "atl": atl_values,
+        "tsb": tsb_values,
+        "current_ctl": ctl_dict[today] if today in ctl_dict else 0.0,
+        "current_atl": atl_dict[today] if today in atl_dict else 0.0,
+        "current_tsb": tsb_dict[today] if today in tsb_dict else 0.0,
+        "acwr": acwr,
+        "acwr_status": acwr_status,
+        "acwr_label": acwr_label,
+        "acwr_advice": acwr_advice
+    }
+
+
+def get_tapering_advisor(db: Session) -> dict:
+    """
+    Determines if a planned race is scheduled and returns countdown and tapering details.
+    """
+    today = datetime.date.today()
+    udine_date = datetime.date(2026, 9, 20)
+    roma_date = datetime.date(2027, 3, 14)
+    
+    upcoming_races = []
+    if udine_date >= today:
+        upcoming_races.append(("Maratonina di Udine", udine_date, "mezza"))
+    if roma_date >= today:
+        upcoming_races.append(("Maratona di Roma", roma_date, "maratona"))
+        
+    if not upcoming_races:
+        return {
+            "has_race": False,
+            "is_tapering": False,
+            "race_name": None,
+            "days_to_race": None,
+            "weeks_to_taper": 0,
+            "weeks_tapering": []
+        }
+        
+    upcoming_races.sort(key=lambda x: x[1])
+    race_name, race_date, race_type = upcoming_races[0]
+    days_to_race = (race_date - today).days
+    
+    if days_to_race > 21:
+        weeks_to_taper = (days_to_race - 21) // 7
+        is_tapering = False
+    else:
+        weeks_to_taper = 0
+        is_tapering = True
+        
+    thirty_days_ago = today - datetime.timedelta(days=30)
+    total_km_30d = db.query(func.sum(WorkoutExecuted.distance_km)).filter(WorkoutExecuted.date >= thirty_days_ago).scalar() or 0.0
+    avg_weekly_vol = float((total_km_30d / 30.0) * 7.0)
+    if avg_weekly_vol < 15.0:
+        avg_weekly_vol = 30.0
+        
+    w3_vol = round(avg_weekly_vol * 0.75, 1)
+    w3_desc = "Riduzione lieve (-25%). Mantieni 1 o 2 sessioni di qualità brevi al passo gara stimato. Ottimo momento per massaggi e stretching."
+    
+    w2_vol = round(avg_weekly_vol * 0.55, 1)
+    w2_desc = "Riduzione media (-45%). Ultimo richiamo di ritmo gara a metà settimana. Limita le sessioni di forza pesante."
+    
+    w1_vol = round(avg_weekly_vol * 0.30, 1)
+    w1_desc = "Scarico massimo (-70%). Solo corse brevissime e facili con qualche allungo finale. Concentrati su sonno e carbo-loading."
+    
+    current_week = 3 if days_to_race > 14 else 2 if days_to_race > 7 else 1
+    
+    weeks = [
+        {"week": 3, "volume_km": w3_vol, "description": w3_desc, "is_current": is_tapering and current_week == 3},
+        {"week": 2, "volume_km": w2_vol, "description": w2_desc, "is_current": is_tapering and current_week == 2},
+        {"week": 1, "volume_km": w1_vol, "description": w1_desc, "is_current": is_tapering and current_week == 1}
+    ]
+    
+    return {
+        "has_race": True,
+        "is_tapering": is_tapering,
+        "race_name": f"{race_name} (il {race_date.strftime('%d/%m/%Y')})",
+        "days_to_race": days_to_race,
+        "weeks_to_taper": weeks_to_taper,
+        "weeks_tapering": weeks
+    }
+
+
+@app.post("/api/workout/{workout_id}/sweat-rate")
+def save_workout_sweat_rate(workout_id: int, weight_pre: float = Form(...), weight_post: float = Form(...), fluids_ml: float = Form(...), db: Session = Depends(get_db)):
+    workout = db.query(WorkoutExecuted).filter(WorkoutExecuted.id == workout_id).first()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+    duration_hr = (workout.distance_km * (workout.avg_pace or 300.0)) / 3600.0
+    if duration_hr <= 0:
+        duration_hr = 0.75
+    actual_loss_liters = weight_pre - weight_post + (fluids_ml / 1000.0)
+    sweat_rate_l_h = actual_loss_liters / duration_hr
+    
+    # Save as an AgentInsight so we don't have to alter schema
+    # Search for existing one
+    existing_insight = db.query(AgentInsight).filter(
+        AgentInsight.insight_type == "workout_sweat_rate"
+    ).all()
+    
+    insight_to_update = None
+    for ins in existing_insight:
+        if ins.memory_payload.get("workout_id") == workout_id:
+            insight_to_update = ins
+            break
+            
+    payload = {
+        "workout_id": workout_id,
+        "weight_pre": weight_pre,
+        "weight_post": weight_post,
+        "fluids_ml": fluids_ml,
+        "actual_loss_liters": round(actual_loss_liters, 2),
+        "sweat_rate_l_h": round(sweat_rate_l_h, 2),
+        "sodium_needed_mg": int(actual_loss_liters * 700)
+    }
+    
+    if insight_to_update:
+        insight_to_update.memory_payload = payload
+    else:
+        new_insight = AgentInsight(
+            agent_name="nutritionist",
+            insight_type="workout_sweat_rate",
+            memory_payload=payload
+        )
+        db.add(new_insight)
+    db.commit()
+    return RedirectResponse(url=f"/workout/{workout_id}?sweat_calculated=1", status_code=303)
+
+
+@app.post("/workout/{workout_id}/delete")
+def delete_workout(workout_id: int, db: Session = Depends(get_db)):
+    """
+    Deletes a WorkoutExecuted record and any associated AgentInsight records,
+    then redirects the user to the history page.
+    """
+    workout = db.query(WorkoutExecuted).filter(WorkoutExecuted.id == workout_id).first()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Allenamento non trovato")
+
+    # Delete associated AgentInsight records (workout analysis, sweat rate, etc.)
+    related_insights = db.query(AgentInsight).filter(
+        AgentInsight.memory_payload["workout_id"].as_integer() == workout_id
+    ).all()
+    for insight in related_insights:
+        db.delete(insight)
+
+    # Delete the workout itself
+    db.delete(workout)
+    db.commit()
+
+    logger_print(f"[Delete] WorkoutExecuted ID={workout_id} eliminato dall'utente.")
+    return RedirectResponse(url="/history", status_code=303)
+
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 def get_athlete_dashboard(request: Request, db: Session = Depends(get_db)):
+
     """
     Renders the premium Dark Mode dashboard with athletic stats,
     readiness metrics, plans, and historical logs.
     """
     today = datetime.date.today()
+    
+    # Calculate countdown to next races (Udine and Roma)
+    now_dt = datetime.datetime.now()
+    udine_dt = datetime.datetime(2026, 9, 20, 9, 30, 0)
+    roma_dt = datetime.datetime(2027, 3, 14, 9, 0, 0)
+    
+    countdown_info = None
+    upcoming_races = []
+    if udine_dt >= now_dt:
+        upcoming_races.append(("Maratonina di Udine", udine_dt))
+    if roma_dt >= now_dt:
+        upcoming_races.append(("Maratona di Roma", roma_dt))
+        
+    if upcoming_races:
+        upcoming_races.sort(key=lambda x: x[1])
+        next_race_name, next_race_dt = upcoming_races[0]
+        delta = next_race_dt - now_dt
+        days_left = delta.days
+        countdown_info = {
+            "race_name": next_race_name,
+            "date_str": next_race_dt.strftime("%d/%m/%Y alle %H:%M"),
+            "target_iso": next_race_dt.isoformat(),
+            "days_left": days_left
+        }
     
     # 1. Fetch latest daily metrics & readiness
     readiness_data = None
@@ -556,7 +882,8 @@ def get_athlete_dashboard(request: Request, db: Session = Depends(get_db)):
             "pasto": pasto_data,
             "shoe_mileage": shoe_mileage,
             "predictions": predictions,
-            "perf_profile": perf_profile
+            "perf_profile": perf_profile,
+            "countdown": countdown_info
         }
     )
 
@@ -1300,6 +1627,35 @@ def get_workout_detail(workout_id: int, request: Request, db: Session = Depends(
     if workout_analysis and workout_analysis.memory_payload:
         critique_text = workout_analysis.memory_payload.get("analysis")
 
+    # Sweat rate calculations
+    weather = fetch_workout_weather(db, workout)
+    temp = weather.get("temp") or 18.0
+    
+    weight = 76.0
+    latest_metric = db.query(DailyMetric).filter(DailyMetric.weight_kg.isnot(None)).order_by(DailyMetric.date.desc()).first()
+    if latest_metric:
+        weight = latest_metric.weight_kg
+        
+    pace_min_km = (workout.avg_pace or 300.0) / 60.0
+    temp_factor = 1.0 + max(-0.5, min(1.5, (temp - 15.0) / 15.0))
+    est_sweat_rate = weight * 0.009 * temp_factor * (6.5 / (pace_min_km if pace_min_km > 0 else 6.5))
+    est_sweat_rate = max(0.4, min(2.2, est_sweat_rate))
+    
+    duration_hr = (workout.distance_km * (workout.avg_pace or 300.0)) / 3600.0
+    est_total_loss = est_sweat_rate * duration_hr
+    
+    recommended_fluid_ml_h = int(est_sweat_rate * 1000 * 0.8)
+    recommended_sodium_mg = int(est_total_loss * 700)
+    
+    actual_sweat_data = None
+    existing_insights = db.query(AgentInsight).filter(
+        AgentInsight.insight_type == "workout_sweat_rate"
+    ).all()
+    for ins in existing_insights:
+        if ins.memory_payload.get("workout_id") == workout_id:
+            actual_sweat_data = ins.memory_payload
+            break
+
     return templates.TemplateResponse(
         request=request,
         name="workout_detail.html",
@@ -1319,7 +1675,12 @@ def get_workout_detail(workout_id: int, request: Request, db: Session = Depends(
             "predictions": predictions,
             "perf_profile": perf_profile,
             "workouts": workouts,
-            "critique": critique_text
+            "critique": critique_text,
+            "est_sweat_rate": round(est_sweat_rate, 2),
+            "est_total_loss": round(est_total_loss, 2),
+            "recommended_fluid_ml_h": recommended_fluid_ml_h,
+            "recommended_sodium_mg": recommended_sodium_mg,
+            "actual_sweat": actual_sweat_data
         }
     )
 
@@ -1399,6 +1760,7 @@ def get_athlete_profile(request: Request, db: Session = Depends(get_db)):
     shoe_mileage = get_current_shoe_mileage(db)
     predictions = get_race_predictions(db)
     from agents.nodes import build_athlete_performance_profile
+    perf_profile = build_athlete_performance_profile(db)
     # Fetch calibrated zones from AgentInsight
     calibration_insight = db.query(AgentInsight).filter(
         AgentInsight.insight_type == "hr_zone_calibration"
@@ -1421,7 +1783,6 @@ def get_athlete_profile(request: Request, db: Session = Depends(get_db)):
             "shoe_mileage": shoe_mileage,
             "predictions": predictions,
             "perf_profile": perf_profile,
-            "workouts": workouts,
             "calibrated_zones": calibrated_zones
         }
     )
@@ -1579,6 +1940,7 @@ def get_predictions_page(request: Request, db: Session = Depends(get_db)):
     from agents.nodes import build_athlete_performance_profile
     perf_profile = build_athlete_performance_profile(db)
     workouts = db.query(WorkoutExecuted).order_by(WorkoutExecuted.date.desc()).all()
+    tapering = get_tapering_advisor(db)
     
     return templates.TemplateResponse(
         request=request,
@@ -1587,7 +1949,8 @@ def get_predictions_page(request: Request, db: Session = Depends(get_db)):
             "shoe_mileage": shoe_mileage,
             "predictions": predictions,
             "perf_profile": perf_profile,
-            "workouts": workouts
+            "workouts": workouts,
+            "tapering": tapering
         }
     )
 
@@ -1642,10 +2005,34 @@ def get_progress_page(request: Request, db: Session = Depends(get_db)):
     from agents.nodes import build_athlete_performance_profile
     perf_profile = build_athlete_performance_profile(db)
     workouts = db.query(WorkoutExecuted).order_by(WorkoutExecuted.date.desc()).all()
+    training_load = get_training_load_history(db)
     
     return templates.TemplateResponse(
         request=request,
         name="progress.html",
+        context={
+            "shoe_mileage": shoe_mileage,
+            "predictions": predictions,
+            "perf_profile": perf_profile,
+            "workouts": workouts,
+            "training_load": training_load
+        }
+    )
+
+
+@app.get("/nutrition", response_class=HTMLResponse)
+def get_nutrition_page(request: Request, db: Session = Depends(get_db)):
+    shoe_mileage = get_current_shoe_mileage(db)
+    predictions = get_race_predictions(db)
+    from agents.nodes import build_athlete_performance_profile
+    perf_profile = build_athlete_performance_profile(db)
+    
+    # We pass workouts just in case we need to reference them in the sidebar
+    workouts = db.query(WorkoutExecuted).order_by(WorkoutExecuted.date.desc()).all()
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="nutrition.html",
         context={
             "shoe_mileage": shoe_mileage,
             "predictions": predictions,
@@ -1892,3 +2279,225 @@ def get_stretching_recommendations(workout_id: Optional[str] = None, db: Session
         "title": title,
         "exercises": exercises
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NEW NUTRITION API ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_daily_nutrition_targets(date_val: datetime.date, db: Session):
+    weight = 76.0 # standard weight
+    kcal_base = 1700
+    carbs_g = int(weight * 4.0)
+    protein_g = int(weight * 1.6)
+    fat_g = int(weight * 1.0)
+    
+    # Check executed
+    workout = db.query(WorkoutExecuted).filter(WorkoutExecuted.date == date_val).first()
+    if workout:
+        kcal_burned = int(workout.distance_km * weight)
+        is_hard = workout.workout_type in ["ripetute", "gara", "medio"]
+        carbs_g = int(weight * (6.5 if is_hard else 4.0))
+        return {
+            "calories": kcal_base + kcal_burned,
+            "carbs": carbs_g,
+            "protein": protein_g,
+            "fat": fat_g
+        }
+        
+    planned = db.query(WorkoutPlanned).filter(WorkoutPlanned.date == date_val).first()
+    if planned:
+        kcal_burned = int(planned.target_distance * weight)
+        is_hard = planned.type in ["ripetute", "gara", "medio", "interval", "tempo", "long"]
+        carbs_g = int(weight * (6.5 if is_hard else 4.0))
+        return {
+            "calories": kcal_base + kcal_burned,
+            "carbs": carbs_g,
+            "protein": protein_g,
+            "fat": fat_g
+        }
+        
+    return {
+        "calories": kcal_base,
+        "carbs": carbs_g,
+        "protein": protein_g,
+        "fat": fat_g
+    }
+
+
+@app.get("/api/nutrition/day")
+def get_nutrition_by_day(date: Optional[str] = None, db: Session = Depends(get_db)):
+    if not date:
+        date_val = datetime.date.today()
+    else:
+        try:
+            date_val = datetime.date.fromisoformat(date)
+        except ValueError:
+            date_val = datetime.date.today()
+            
+    # Fetch targets
+    targets = get_daily_nutrition_targets(date_val, db)
+    
+    # Fetch logs
+    logs = db.query(NutritionLog).filter(NutritionLog.date == date_val).all()
+    
+    # Calculate totals
+    total_cal = 0
+    total_carbs = 0
+    total_protein = 0
+    total_fat = 0
+    
+    meals_dict = {
+        "colazione": [],
+        "merenda_mattina": [],
+        "pranzo": [],
+        "merenda_pomeriggio": [],
+        "cena": []
+    }
+    
+    for l in logs:
+        m = l.macros_json or {}
+        carbs = m.get("carbs", 0) or 0
+        protein = m.get("protein", 0) or 0
+        fat = m.get("fat", 0) or 0
+        
+        total_cal += l.est_calories or 0
+        total_carbs += carbs
+        total_protein += protein
+        total_fat += fat
+        
+        meal_type = l.meal_type or "colazione"
+        if meal_type not in meals_dict:
+            # Fallback/normalization
+            if "merenda" in meal_type and "pomeriggio" in meal_type:
+                meal_type = "merenda_pomeriggio"
+            elif "merenda" in meal_type and "mattina" in meal_type:
+                meal_type = "merenda_mattina"
+            elif "breakfast" in meal_type or "colazione" in meal_type:
+                meal_type = "colazione"
+            elif "lunch" in meal_type or "pranzo" in meal_type:
+                meal_type = "pranzo"
+            elif "dinner" in meal_type or "cena" in meal_type:
+                meal_type = "cena"
+            else:
+                meal_type = "colazione"
+                
+        meals_dict[meal_type].append({
+            "id": l.id,
+            "raw_input": l.raw_input,
+            "est_calories": l.est_calories or 0,
+            "carbs": carbs,
+            "protein": protein,
+            "fat": fat
+        })
+        
+    # Calculate caloric output (BMR + Workout Active Calories)
+    weight_metric = db.query(DailyMetric).filter(
+        DailyMetric.date == date_val,
+        DailyMetric.weight_kg.isnot(None)
+    ).first()
+    if not weight_metric:
+        weight_metric = db.query(DailyMetric).filter(
+            DailyMetric.weight_kg.isnot(None)
+        ).order_by(DailyMetric.date.desc()).first()
+    
+    weight_val = weight_metric.weight_kg if weight_metric else 76.0
+    
+    # BMR simplified (Mifflin-St Jeor for 24yo, 178cm, M)
+    bmr = 10 * weight_val + 6.25 * 178 - 5 * 24 + 5
+    
+    # Active calories from executed workouts on this day
+    workouts_today = db.query(WorkoutExecuted).filter(WorkoutExecuted.date == date_val).all()
+    active_cal = sum(int(w.distance_km * weight_val * 1.0) for w in workouts_today)
+    
+    total_out = int(bmr + active_cal)
+    balance = total_cal - total_out
+
+    # Get logged dates in ISO format
+    all_logged_dates = [
+        d[0].isoformat() for d in db.query(NutritionLog.date).distinct().all() if d[0]
+    ]
+        
+    return {
+        "date": date_val.isoformat(),
+        "totals": {
+            "calories": total_cal,
+            "carbs": total_carbs,
+            "protein": total_protein,
+            "fat": total_fat
+        },
+        "targets": targets,
+        "meals": meals_dict,
+        "logged_dates": all_logged_dates,
+        "caloric_balance": {
+            "bmr": int(bmr),
+            "active_calories": active_cal,
+            "total_in": total_cal,
+            "total_out": total_out,
+            "balance": balance
+        }
+    }
+
+
+@app.post("/api/nutrition/add")
+def add_nutrition_log(
+    date: str = Form(...),
+    meal_type: str = Form(...),
+    raw_input: str = Form(...),
+    est_calories: Optional[int] = Form(None),
+    carbs: Optional[int] = Form(None),
+    protein: Optional[int] = Form(None),
+    fat: Optional[int] = Form(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        date_val = datetime.date.fromisoformat(date)
+    except ValueError:
+        date_val = datetime.date.today()
+        
+    if est_calories is None:
+        est_calories = 250
+    if carbs is None:
+        carbs = 20
+    if protein is None:
+        protein = 10
+    if fat is None:
+        fat = 5
+        
+    log = NutritionLog(
+        date=date_val,
+        raw_input=raw_input,
+        est_calories=est_calories,
+        macros_json={"carbs": carbs, "protein": protein, "fat": fat},
+        meal_type=meal_type
+    )
+    db.add(log)
+    db.commit()
+    
+    # Save nutritionist insight
+    insight = AgentInsight(
+        agent_name="nutritionist",
+        insight_type="nutrition_log",
+        memory_payload={
+            "date": date_val.isoformat(),
+            "meal_type": meal_type,
+            "raw_input": raw_input,
+            "calories": est_calories,
+            "macros": {"carbs": carbs, "protein": protein, "fat": fat}
+        }
+    )
+    db.add(insight)
+    db.commit()
+    
+    return {"status": "success", "log_id": log.id}
+
+
+@app.post("/api/nutrition/delete/{log_id}")
+def delete_nutrition_log(log_id: int, db: Session = Depends(get_db)):
+    log = db.query(NutritionLog).filter(NutritionLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log not found")
+        
+    db.delete(log)
+    db.commit()
+    return {"status": "success"}

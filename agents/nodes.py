@@ -19,12 +19,13 @@ def get_llm(agent_name: Optional[str] = None):
         api_key = os.getenv(specific_key_name)
     
     # Fallback to general GOOGLE_API_KEY
-    if not api_key:
+    if not api_key or not api_key.strip():
         api_key = os.getenv("GOOGLE_API_KEY")
         
-    if not api_key:
+    if not api_key or not api_key.strip():
         return None
         
+    api_key = api_key.strip()
     model_name = os.getenv("GEMINI_MODEL", "gemma-4-31b-it")
     return ChatGoogleGenerativeAI(
         model=model_name,
@@ -199,8 +200,12 @@ def manager_router_node(state: AgentState) -> Dict[str, Any]:
         try:
             # Bind LLM to Pydantic schema for structured output
             structured_llm = llm.with_structured_output(ManagerDecision)
+            today = datetime.date.today()
+            days_it = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
+            today_day_name = days_it[today.weekday()]
             system_prompt = (
-                "Sei il Manager Router di Marathon-Multi-Agent.\n"
+                f"Sei il Manager Router di Marathon-Multi-Agent.\n"
+                f"La data e l'ora corrente sono: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({today_day_name}).\n"
                 "Il tuo compito è analizzare il messaggio dell'atleta (ed eventuale immagine allegata), classificare il suo intento "
                 "ed estrarre in modo strutturato i dati fisiologici o nutrizionali. Se l'utente allega una foto di cibo, stima le calorie e i macronutrienti."
             )
@@ -232,16 +237,18 @@ def manager_router_node(state: AgentState) -> Dict[str, Any]:
                 if dm.steps is not None: parsed_metrics["steps"] = dm.steps
                 
             if decision.nutrition:
-                dn = decision.nutrition
-                parsed_nutrition = {
-                    "raw_input": dn.raw_input,
-                    "est_calories": dn.est_calories,
-                    "macros": {
-                        "carbs": dn.macros.carbs,
-                        "protein": dn.macros.protein,
-                        "fat": dn.macros.fat
-                    }
-                }
+                parsed_nutrition = []
+                for dn in decision.nutrition:
+                    parsed_nutrition.append({
+                        "raw_input": dn.raw_input,
+                        "est_calories": dn.est_calories,
+                        "macros": {
+                            "carbs": dn.macros.carbs,
+                            "protein": dn.macros.protein,
+                            "fat": dn.macros.fat
+                        },
+                        "meal_type": dn.meal_type
+                    })
         except Exception as e:
             print(f"Error in Manager Structured LLM: {e}")
             intent = "chat"
@@ -253,26 +260,27 @@ def manager_router_node(state: AgentState) -> Dict[str, Any]:
             parsed_metrics = {"sleep_hours": 7.5, "resting_hr": 54, "hrv_score": 62, "steps": 10000}
         elif "mangiat" in message_lower or "cibo" in message_lower or "calor" in message_lower:
             intent = "log_nutrition"
-            parsed_nutrition = {
+            parsed_nutrition = [{
                 "raw_input": message,
                 "est_calories": 450,
-                "macros": {"carbs": 50, "protein": 25, "fat": 15}
-            }
+                "macros": {"carbs": 50, "protein": 25, "fat": 15},
+                "meal_type": None
+            }]
         elif "allenament" in message_lower or "prossim" in message_lower or "correre" in message_lower:
             intent = "ask_plan"
 
     # Determine execution sequence based on intent and file uploads
     if file_path or intent == "log_workout" or state.get("parsed_workout"):
-        next_nodes = ["physiologist", "trainer", "nutritionist"]
+        next_nodes = ["trainer", "nutritionist"]
         router_decision = "physiologist"
     elif intent == "log_metrics" or parsed_metrics:
-        next_nodes = ["physiologist"]
+        next_nodes = []
         router_decision = "physiologist"
     elif intent == "log_nutrition" or parsed_nutrition:
-        next_nodes = ["nutritionist"]
+        next_nodes = []
         router_decision = "nutritionist"
     elif intent == "ask_plan":
-        next_nodes = ["trainer"]
+        next_nodes = []
         router_decision = "trainer"
     else:
         next_nodes = []
@@ -852,28 +860,48 @@ def nutritionist_node(state: AgentState) -> Dict[str, Any]:
         profile = state.get("athlete_profile", {})
         
         # 1. Parse and Save Nutrition Log if present
-        parsed_nut = state.get("parsed_nutrition")
-        if parsed_nut:
-            log = NutritionLog(
-                date=today,
-                raw_input=parsed_nut.get("raw_input", "Pasto registrato"),
-                est_calories=parsed_nut.get("est_calories"),
-                macros_json=parsed_nut.get("macros")
-            )
-            db.add(log)
-            db.commit()
-            
-            insight = AgentInsight(
-                agent_name="nutritionist",
-                insight_type="nutrition_log",
-                memory_payload={
-                    "date": today.isoformat(),
-                    "calories": log.est_calories,
-                    "macros": log.macros_json
-                }
-            )
-            db.add(insight)
-            db.commit()
+        parsed_nut_list = state.get("parsed_nutrition")
+        if parsed_nut_list:
+            if not isinstance(parsed_nut_list, list):
+                parsed_nut_list = [parsed_nut_list]
+                
+            for parsed_nut in parsed_nut_list:
+                meal_type = parsed_nut.get("meal_type")
+                if not meal_type:
+                    current_hour = datetime.datetime.now().hour
+                    if current_hour < 11:
+                        meal_type = "colazione"
+                    elif current_hour < 13:
+                        meal_type = "merenda_mattina"
+                    elif current_hour < 16:
+                        meal_type = "pranzo"
+                    elif current_hour < 19:
+                        meal_type = "merenda_pomeriggio"
+                    else:
+                        meal_type = "cena"
+                        
+                log = NutritionLog(
+                    date=today,
+                    raw_input=parsed_nut.get("raw_input", "Pasto registrato"),
+                    est_calories=parsed_nut.get("est_calories"),
+                    macros_json=parsed_nut.get("macros"),
+                    meal_type=meal_type
+                )
+                db.add(log)
+                db.commit()
+                
+                insight = AgentInsight(
+                    agent_name="nutritionist",
+                    insight_type="nutrition_log",
+                    memory_payload={
+                        "date": today.isoformat(),
+                        "meal_type": meal_type,
+                        "calories": log.est_calories,
+                        "macros": log.macros_json
+                    }
+                )
+                db.add(insight)
+                db.commit()
 
         # 2. Estimate caloric expenditure and nutritional needs
         workout_exec = state.get("parsed_workout")
@@ -1003,18 +1031,40 @@ def responder_node(state: AgentState) -> Dict[str, Any]:
         system_prompt = (
             "Sei il team di allenatori personali MarathonCoachAI (Trainer, Fisiologo, Nutrizionista).\n"
             "Comunica con tono motivante, professionale e chiaro in ITALIANO.\n"
+            "Mantieni i messaggi puliti ed evita l'uso eccessivo di emoji (rimuovi simboli non necessari o ripetitivi, usali solo se hanno una reale utilità informativa o visiva per rendere il testo leggibile).\n"
             "L'atleta si prepara per: Maratonina di Udine (20 Set 2026) e Maratona di Roma (14 Mar 2027).\n"
             "Analizza il messaggio dell'atleta e rispondi in modo cordiale, fornendo feedback su allenamenti, nutrizione e stato di forma.\n"
             "Se l'atleta invia la foto di un pasto, analizzala e stima calorie e macronutrienti per aiutarlo a tracciare la nutrizione."
         )
+        # Fetch today's logged nutrition from DB to provide full context to the LLM
+        db_session = SessionLocal()
+        today_logs_str = "nessuno"
+        try:
+            today_date = datetime.date.today()
+            today_logs = db_session.query(NutritionLog).filter(NutritionLog.date == today_date).all()
+            if today_logs:
+                today_logs_str = ", ".join([
+                    f"{log.raw_input} ({log.est_calories} kcal, Carboidrati: {log.macros_json.get('carbs', 0) if log.macros_json else 0}g, Proteine: {log.macros_json.get('protein', 0) if log.macros_json else 0}g, Grassi: {log.macros_json.get('fat', 0) if log.macros_json else 0}g) per {log.meal_type}"
+                    for log in today_logs
+                ])
+        except Exception as e:
+            print(f"Error fetching today's nutrition logs in responder: {e}")
+        finally:
+            db_session.close()
+
         trend_note = format_trend_note(perf_profile)
         plan_text = format_weekly_plan(weekly_plan) if weekly_plan else ""
         
+        days_it = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
+        today_day_name = days_it[today_date.weekday()]
+        
         prompt = (
+            f"Data corrente di oggi: {today_date.isoformat()} ({today_day_name})\n"
             f"Messaggio dell'atleta: \"{state.get('message_text') or ''}\"\n"
             f"Profilo atleta: PB Mezza {athlete.get('pb_half_marathon', '1:47:00')}, PB 10k {athlete.get('pb_10k', '48:55')}, scarpa {athlete.get('shoe_used', 'N/D')} ({athlete.get('shoe_mileage', 0)} km).\n"
             f"Readiness: {readiness.get('readiness_score', 80) if readiness else 'N/D'}/100\n"
-            f"Dati Nutrizionali Loggati: {json.dumps(state.get('parsed_nutrition')) if state.get('parsed_nutrition') else 'nessuno'}\n"
+            f"Dati Nutrizionali Loggati Oggi (nel database): {today_logs_str}\n"
+            f"Dati Nutrizionali Loggati in questo messaggio: {json.dumps(state.get('parsed_nutrition')) if state.get('parsed_nutrition') else 'nessuno'}\n"
             f"Workout eseguito oggi: {json.dumps(parsed_wo) if parsed_wo else 'nessuno'}\n"
             f"Trend di miglioramento: {trend_note if trend_note else 'dati insufficienti'}\n"
         )
@@ -1051,7 +1101,7 @@ def responder_node(state: AgentState) -> Dict[str, Any]:
             print(f"Error in Responder LLM: {e}")
 
     # ── Manual fallback formatter ─────────────────────────────────────────────
-    response_parts = ["🏃 **Marathon-Multi-Agent Coach** 🏃\n"]
+    response_parts = ["🏃 **Marathon-Multi-Agent Coach**\n"]
 
     trend_note = format_trend_note(perf_profile)
     if trend_note:
@@ -1061,7 +1111,7 @@ def responder_node(state: AgentState) -> Dict[str, Any]:
         pace_min = int(parsed_wo['avg_pace'] // 60)
         pace_sec = int(parsed_wo['avg_pace'] % 60)
         response_parts.append(
-            f"1️⃣ **Analisi dell'Allenamento:**\n"
+            f"**Analisi dell'Allenamento:**\n"
             f"• Distanza: {parsed_wo['distance_km']} km\n"
             f"• Passo Medio: {pace_min}:{pace_sec:02d}/km\n"
             f"• Cadenza Media: {parsed_wo.get('avg_cadence', 'N/D')} spm\n"
@@ -1080,24 +1130,42 @@ def responder_node(state: AgentState) -> Dict[str, Any]:
 
     if readiness and not weekly_plan:
         response_parts.append(
-            f"📊 **Readiness: {readiness['readiness_score']}/100** ({readiness['status']})\n"
+            f"**Readiness: {readiness['readiness_score']}/100** ({readiness['status']})\n"
             f"• Sonno: {readiness['sleep_hours']}h | "
             f"RHR: {readiness['resting_hr']} bpm | HRV: {readiness['hrv_score']}\n"
         )
 
+    if parsed_nut and not parsed_wo:
+        if isinstance(parsed_nut, list):
+            items_lines = []
+            for item in parsed_nut:
+                macros_info = ""
+                m = item.get("macros", {})
+                if m:
+                    macros_info = f" (Carboidrati: {m.get('carbs', 0)}g, Proteine: {m.get('protein', 0)}g, Grassi: {m.get('fat', 0)}g)"
+                items_lines.append(f"• **{item.get('raw_input')}** (~{item.get('est_calories', 0)} kcal){macros_info}")
+            items_str = "\n".join(items_lines)
+            
+            response_parts.append(
+                f"**Pasti Registrati nel Diario!**\n"
+                f"Ho inserito correttamente i seguenti cibi:\n{items_str}\n"
+            )
+        else:
+            macros_info = ""
+            m = parsed_nut.get("macros", {})
+            if m:
+                macros_info = f" (Carboidrati: {m.get('carbs', 0)}g, Proteine: {m.get('protein', 0)}g, Grassi: {m.get('fat', 0)}g)"
+            response_parts.append(
+                f"**Pasto Registrato nel Diario!**\n"
+                f"Ho inserito correttamente: **{parsed_nut.get('raw_input')}** (~{parsed_nut.get('est_calories')} kcal){macros_info}\n"
+            )
+
     if nutrition:
         response_parts.append(
-            f"🍎 **Nutrizione:** {nutrition['recommended_daily_calories']} kcal target — "
-            f"CH {nutrition['macros_target']['carbs_g']}g · "
-            f"P {nutrition['macros_target']['protein_g']}g · "
-            f"G {nutrition['macros_target']['fat_g']}g\n"
-            f"• {nutrition['advice']}\n"
-        )
-
-    if parsed_nut and not parsed_wo:
-        response_parts.append(
-            f"🍴 **Pasto registrato:** {parsed_nut.get('raw_input')} "
-            f"(~{parsed_nut.get('est_calories')} kcal)\n"
+            f"**Target Giornaliero Consigliato:**\n"
+            f"• Calorie: **{nutrition['recommended_daily_calories']} kcal**\n"
+            f"• Macronutrienti: Carboidrati **{nutrition['macros_target']['carbs_g']}g** | Proteine **{nutrition['macros_target']['protein_g']}g** | Grassi **{nutrition['macros_target']['fat_g']}g**\n\n"
+            f"**Consiglio del Team:** {nutrition['advice']}\n"
         )
 
     response_text = "\n".join(response_parts)

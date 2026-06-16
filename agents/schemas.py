@@ -22,6 +22,11 @@ class NutritionExtraction(BaseModel):
     raw_input: str = Field(..., description="Descrizione testuale del pasto inserito dall'atleta")
     est_calories: int = Field(..., description="Stima delle calorie totali del pasto in kcal")
     macros: Macros = Field(..., description="Suddivisione stimata dei macronutrienti")
+    meal_type: Optional[str] = Field(
+        None,
+        description="Il tipo di pasto: 'colazione', 'merenda_mattina', 'pranzo', 'merenda_pomeriggio' o 'cena'. "
+                    "Se non specificato nel testo dell'atleta o orario del messaggio, lascia nullo."
+    )
 
 
 class ManagerDecision(BaseModel):
@@ -36,9 +41,9 @@ class ManagerDecision(BaseModel):
         None,
         description="Dati fisiologici giornalieri estratti dal testo (se presenti)"
     )
-    nutrition: Optional[NutritionExtraction] = Field(
+    nutrition: Optional[List[NutritionExtraction]] = Field(
         None,
-        description="Pasto e macronutrienti estratti dal testo (se presenti)"
+        description="Lista di pasti e macronutrienti estratti dal testo come elementi separati (se presenti). Ad esempio, se l'atleta indica cibi o piatti differenti (es. 'insalata...' e 'una pesca'), separali in oggetti diversi nella lista."
     )
 
 

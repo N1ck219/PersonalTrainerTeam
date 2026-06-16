@@ -105,7 +105,7 @@ class WorkoutExecuted(Base):
 
 class NutritionLog(Base):
     """
-    4. nutrition_logs: id, date, raw_input, est_calories, macros_json (JSON).
+    4. nutrition_logs: id, date, raw_input, est_calories, macros_json (JSON), meal_type.
     """
     __tablename__ = "nutrition_logs"
 
@@ -114,9 +114,10 @@ class NutritionLog(Base):
     raw_input: Mapped[str] = mapped_column(String, nullable=False)  # Telegram text log
     est_calories: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     macros_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)  # {"carbs": x, "protein": y, "fat": z}
+    meal_type: Mapped[Optional[str]] = mapped_column(String, nullable=True) # e.g. "colazione", "merenda_mattina", "pranzo", "merenda_pomeriggio", "cena"
 
     def __repr__(self) -> str:
-        return f"<NutritionLog(id={self.id}, date={self.date}, calories={self.est_calories}, macros={self.macros_json})>"
+        return f"<NutritionLog(id={self.id}, date={self.date}, calories={self.est_calories}, macros={self.macros_json}, meal_type={self.meal_type})>"
 
 
 class AgentInsight(Base):
@@ -195,6 +196,13 @@ def init_db() -> None:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE workouts_executed ADD COLUMN comment TEXT;"))
                 print("[init_db] Column 'comment' successfully added to 'workouts_executed' table.")
+        
+        # Add meal_type column to nutrition_logs if missing
+        columns_nl = [col["name"] for col in inspector.get_columns("nutrition_logs")]
+        if "meal_type" not in columns_nl:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE nutrition_logs ADD COLUMN meal_type TEXT;"))
+                print("[init_db] Column 'meal_type' successfully added to 'nutrition_logs' table.")
         
         # Automatically add Garmin columns to daily_metrics if missing
         columns_dm = [col["name"] for col in inspector.get_columns("daily_metrics")]

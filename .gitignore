@@ -153,3 +153,4 @@ Desktop.ini
 GPX/
 data/uploads/*
 !data/uploads/.gitkeep
+static/data/uploads/chat

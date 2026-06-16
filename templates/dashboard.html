@@ -33,6 +33,43 @@
                 </div>
             </div>
         </header>
+
+        <!-- COUNTDOWN BANNER -->
+        {% if countdown %}
+        <div class="glass-card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%); border: 1px solid rgba(236, 72, 153, 0.25); display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; flex-wrap: wrap; gap: 1rem; border-radius: 16px;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span style="font-size: 2rem;">🎯</span>
+                <div style="text-align: left;">
+                    <h4 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1rem; font-weight: 700; color: #fff;">Prossimo Obiettivo: {{ countdown.race_name }}</h4>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.78rem; color: var(--text-muted);">Data dell'evento: {{ countdown.date_str }}</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="display: flex; gap: 0.6rem; align-items: center; background: rgba(255,255,255,0.02); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
+                    <div style="display: flex; flex-direction: column; align-items: center; min-width: 45px;">
+                        <span id="countdown-days" style="font-size: 1.6rem; font-weight: 800; font-family: 'Montserrat', sans-serif; color: var(--color-pink); line-height: 1;">{{ countdown.days_left }}</span>
+                        <span style="font-size: 0.58rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-top: 0.2rem;">Giorni</span>
+                    </div>
+                    <span style="color: var(--color-pink); font-weight: 700; font-size: 1.2rem; align-self: center; margin-top: -0.5rem;">:</span>
+                    <div style="display: flex; flex-direction: column; align-items: center; min-width: 35px;">
+                        <span id="countdown-hours" style="font-size: 1.6rem; font-weight: 800; font-family: 'Montserrat', sans-serif; color: var(--color-pink); line-height: 1;">00</span>
+                        <span style="font-size: 0.58rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-top: 0.2rem;">Ore</span>
+                    </div>
+                    <span style="color: var(--color-pink); font-weight: 700; font-size: 1.2rem; align-self: center; margin-top: -0.5rem;">:</span>
+                    <div style="display: flex; flex-direction: column; align-items: center; min-width: 35px;">
+                        <span id="countdown-minutes" style="font-size: 1.6rem; font-weight: 800; font-family: 'Montserrat', sans-serif; color: var(--color-pink); line-height: 1;">00</span>
+                        <span style="font-size: 0.58rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-top: 0.2rem;">Min</span>
+                    </div>
+                    <span style="color: var(--color-pink); font-weight: 700; font-size: 1.2rem; align-self: center; margin-top: -0.5rem;">:</span>
+                    <div style="display: flex; flex-direction: column; align-items: center; min-width: 35px;">
+                        <span id="countdown-seconds" style="font-size: 1.6rem; font-weight: 800; font-family: 'Montserrat', sans-serif; color: var(--color-pink); line-height: 1;">00</span>
+                        <span style="font-size: 0.58rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-top: 0.2rem;">Sec</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- MAIN LAYOUT -->
         <div class="dashboard-grid">
 
@@ -594,6 +631,36 @@
 
         // Show success toast if query parameter is present
         document.addEventListener('DOMContentLoaded', function() {
+            // Live countdown timer logic
+            const targetIso = "{{ countdown.target_iso if countdown else '' }}";
+            if (targetIso) {
+                const targetDate = new Date(targetIso);
+                function updateTimer() {
+                    const now = new Date();
+                    const diff = targetDate - now;
+                    
+                    if (diff <= 0) {
+                        document.getElementById("countdown-days").innerText = "0";
+                        document.getElementById("countdown-hours").innerText = "00";
+                        document.getElementById("countdown-minutes").innerText = "00";
+                        document.getElementById("countdown-seconds").innerText = "00";
+                        return;
+                    }
+                    
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    
+                    document.getElementById("countdown-days").innerText = days;
+                    document.getElementById("countdown-hours").innerText = hours.toString().padStart(2, '0');
+                    document.getElementById("countdown-minutes").innerText = minutes.toString().padStart(2, '0');
+                    document.getElementById("countdown-seconds").innerText = seconds.toString().padStart(2, '0');
+                }
+                updateTimer();
+                setInterval(updateTimer, 1000);
+            }
+
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('uploaded') === '1') {
                 const toast = document.getElementById('toast-success');
@@ -652,7 +719,10 @@
                     <span class="nav-icon">🧘</span> Stretching
                 </a>
                 <a href="/pain-log" class="sidebar-nav-link">
-                    <span class="nav-icon">⚠️</span> Registro Dolori
+                    <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+                <a href="/nutrition" class="sidebar-nav-link">
+                    <span class="nav-icon">🥗</span> Alimentazione
                 </a>
             </div>
 

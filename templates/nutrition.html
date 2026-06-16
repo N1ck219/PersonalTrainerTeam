@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diario Alimentazione - Marathon Personal Trainer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.1">
+    
+    <style>
+        /* Specific Nutrition Page Styles */
+        .calendar-container {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            width: 100%;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .calendar-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+            text-transform: capitalize;
+        }
+
+        .calendar-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 0.25rem 0.50rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+
+        .calendar-btn:hover {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: var(--color-purple);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.35rem;
+            text-align: center;
+        }
+
+        .calendar-day-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            padding-bottom: 0.25rem;
+        }
+
+        .calendar-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.82rem;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+        }
+
+        .calendar-cell:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .calendar-cell.other-month {
+            opacity: 0.25;
+            cursor: default;
+        }
+
+        .calendar-cell.selected {
+            background: linear-gradient(135deg, var(--color-purple) 0%, #6366f1 100%) !important;
+            color: #fff !important;
+            font-weight: 700;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .calendar-cell.has-log::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--color-cyan);
+            box-shadow: 0 0 4px var(--color-cyan);
+        }
+
+        .calendar-cell.today {
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            color: var(--color-purple);
+            font-weight: 600;
+        }
+
+        /* Macro Progress Bars */
+        .macro-card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .macro-stat-box {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .macro-progress-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 0.25rem;
+        }
+
+        .macro-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        .fill-carbs { background: var(--color-purple); }
+        .fill-protein { background: var(--color-cyan); }
+        .fill-fat { background: var(--color-pink); }
+
+        /* Macro badges inside meal items */
+        .macro-badge {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.15rem 0.45rem;
+            border-radius: 6px;
+            border: 1px solid transparent;
+        }
+        .macro-badge.calories {
+            background: rgba(245, 158, 11, 0.08);
+            color: #fbbf24;
+            border-color: rgba(245, 158, 11, 0.15);
+        }
+        .macro-badge.carbs {
+            background: rgba(167, 139, 250, 0.08);
+            color: #c084fc;
+            border-color: rgba(167, 139, 250, 0.15);
+        }
+        .macro-badge.protein {
+            background: rgba(34, 211, 238, 0.08);
+            color: #67e8f9;
+            border-color: rgba(34, 211, 238, 0.15);
+        }
+        .macro-badge.fat {
+            background: rgba(244, 114, 182, 0.08);
+            color: #f472b6;
+            border-color: rgba(244, 114, 182, 0.15);
+        }
+
+        /* Meals Layout */
+        .meal-section {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .meal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.6rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .meal-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .meal-calories-badge {
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .meal-items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .meal-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.01);
+            border: 1px solid rgba(255,255,255,0.03);
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .meal-item-desc {
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .meal-item-details {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.15rem;
+        }
+
+        .meal-item-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn-delete-item {
+            background: none;
+            border: none;
+            color: var(--color-red);
+            cursor: pointer;
+            opacity: 0.6;
+            font-size: 0.85rem;
+            transition: opacity 0.2s;
+        }
+
+        .btn-delete-item:hover {
+            opacity: 1;
+        }
+
+        .btn-add-food {
+            background: rgba(255,255,255,0.03);
+            border: 1px dashed var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.5rem;
+            border-radius: 8px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-add-food:hover {
+            background: rgba(139, 92, 246, 0.05);
+            border-color: rgba(139, 92, 246, 0.4);
+            color: #fff;
+        }
+
+        /* Modal Overlay & Card */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Gradient background effects -->
+    <div class="bg-glow bg-glow-purple"></div>
+    <div class="bg-glow bg-glow-blue"></div>
+
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- HEADER -->
+        <header class="dashboard-header glass-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="hamburger-menu-btn" onclick="toggleSidebar()" aria-label="Apri menu">☰</button>
+                <span class="logo-emoji" style="font-size: 2.2rem;">🥗</span>
+                <div class="logo-text">
+                    <h1 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #a78bfa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Diario Alimentazione</h1>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.82rem; color: var(--text-secondary);">Traccia pasti, calorie e macronutrienti per supportare i tuoi allenamenti</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- TOP RECAP PANEL (TODAY / SELECTED DAY) -->
+        <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                <div>
+                    <h2 id="nutrition-day-title" style="margin:0; font-family:'Montserrat', sans-serif; font-size:1.2rem; color:#fff;">Alimentazione di Oggi</h2>
+                    <p id="nutrition-day-subtitle" style="margin:0.25rem 0 0 0; font-size:0.8rem; color:var(--text-secondary);">Stato nutrizionale della giornata</p>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">Totale Calorie Assunte</span>
+                    <strong id="totals-calories-value" style="font-size: 1.6rem; color: var(--color-purple); font-family: 'Montserrat', sans-serif;">0 / 2000 kcal</strong>
+                </div>
+            </div>
+
+            <!-- Calories Progress Bar -->
+            <div style="margin-top: 1rem;">
+                <div style="width: 100%; height: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 5px; overflow: hidden; position: relative;">
+                    <div id="calories-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--color-purple), var(--color-cyan)); border-radius: 5px; transition: width 0.4s ease;"></div>
+                </div>
+            </div>
+
+            <!-- Macro Progress Card Grid -->
+            <div class="macro-card-grid">
+                <!-- Carbs -->
+                <div class="macro-stat-box">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600;">
+                        <span style="color: var(--color-purple);">🍞 Carboidrati</span>
+                        <span id="carbs-ratio-val" style="color: #fff;">0 / 304 g</span>
+                    </div>
+                    <div class="macro-progress-bg">
+                        <div id="carbs-progress-bar" class="macro-progress-fill fill-carbs"></div>
+                    </div>
+                </div>
+
+                <!-- Protein -->
+                <div class="macro-stat-box">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600;">
+                        <span style="color: var(--color-cyan);">🍗 Proteine</span>
+                        <span id="protein-ratio-val" style="color: #fff;">0 / 121 g</span>
+                    </div>
+                    <div class="macro-progress-bg">
+                        <div id="protein-progress-bar" class="macro-progress-fill fill-protein"></div>
+                    </div>
+                </div>
+
+                <!-- Fat -->
+                <div class="macro-stat-box">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600;">
+                        <span style="color: var(--color-pink);">🥑 Grassi</span>
+                        <span id="fat-ratio-val" style="color: #fff;">0 / 76 g</span>
+                    </div>
+                    <div class="macro-progress-bg">
+                        <div id="fat-progress-bar" class="macro-progress-fill fill-fat"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN LAYOUT GRID -->
+        <div class="dashboard-grid" style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+            
+            <!-- LEFT COLUMN: CALENDAR SELECTOR -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button class="calendar-btn" onclick="prevMonth()">◀</button>
+                        <h3 id="calendar-month-year" class="calendar-title">Giugno 2026</h3>
+                        <button class="calendar-btn" onclick="nextMonth()">▶</button>
+                    </div>
+                    <div class="calendar-grid">
+                        <!-- Day labels -->
+                        <div class="calendar-day-label">Lu</div>
+                        <div class="calendar-day-label">Ma</div>
+                        <div class="calendar-day-label">Me</div>
+                        <div class="calendar-day-label">Gi</div>
+                        <div class="calendar-day-label">Ve</div>
+                        <div class="calendar-day-label">Sa</div>
+                        <div class="calendar-day-label">Do</div>
+                        
+                        <!-- Cells inserted dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- Caloric Balance Card -->
+                <div class="calendar-container" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); padding: 1.25rem; border-radius: 12px;">
+                    <h3 class="calendar-title" style="margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>⚖️</span> Bilancio Calorico
+                    </h3>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.82rem; line-height: 1.5; text-align: left;">
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.25rem;">
+                            <span style="color: var(--text-secondary);">Calorie Assunte (In)</span>
+                            <strong id="balance-in" style="color: #fff;">0 kcal</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.25rem;">
+                            <span style="color: var(--text-secondary);">Metabolismo Basale (BMR)</span>
+                            <strong id="balance-bmr" style="color: var(--text-secondary);">0 kcal</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.25rem;">
+                            <span style="color: var(--text-secondary);">Consumo Attivo (Corsa)</span>
+                            <strong id="balance-active" style="color: var(--color-green);">0 kcal</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.25rem; font-weight: 700;">
+                            <span style="color: #fff;">Dispendio Totale (Out)</span>
+                            <strong id="balance-out" style="color: var(--color-pink);">0 kcal</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 0.25rem; font-size: 0.9rem; font-weight: 800;">
+                            <span>Stato Bilancio:</span>
+                            <span id="balance-status" style="color: var(--color-yellow);">Pareggio (0 kcal)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: 5 MEALS DETAILS -->
+            <div>
+                <!-- 1. Colazione -->
+                <div class="meal-section">
+                    <div class="meal-header">
+                        <h3 class="meal-title"><span>☕</span> Colazione</h3>
+                        <span id="meal-calories-colazione" class="meal-calories-badge">0 kcal</span>
+                    </div>
+                    <div id="meal-list-colazione" class="meal-items-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                    <button class="btn-add-food" onclick="openAddFoodModal('colazione')">➕ Aggiungi cibo a colazione</button>
+                </div>
+
+                <!-- 2. Merenda Mattutina -->
+                <div class="meal-section">
+                    <div class="meal-header">
+                        <h3 class="meal-title"><span>🍎</span> Merenda Mattutina</h3>
+                        <span id="meal-calories-merenda_mattina" class="meal-calories-badge">0 kcal</span>
+                    </div>
+                    <div id="meal-list-merenda_mattina" class="meal-items-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                    <button class="btn-add-food" onclick="openAddFoodModal('merenda_mattina')">➕ Aggiungi merenda mattutina</button>
+                </div>
+
+                <!-- 3. Pranzo -->
+                <div class="meal-section">
+                    <div class="meal-header">
+                        <h3 class="meal-title"><span>🍝</span> Pranzo</h3>
+                        <span id="meal-calories-pranzo" class="meal-calories-badge">0 kcal</span>
+                    </div>
+                    <div id="meal-list-pranzo" class="meal-items-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                    <button class="btn-add-food" onclick="openAddFoodModal('pranzo')">➕ Aggiungi cibo a pranzo</button>
+                </div>
+
+                <!-- 4. Merenda Pomeridiana -->
+                <div class="meal-section">
+                    <div class="meal-header">
+                        <h3 class="meal-title"><span>🍌</span> Merenda Pomeridiana</h3>
+                        <span id="meal-calories-merenda_pomeriggio" class="meal-calories-badge">0 kcal</span>
+                    </div>
+                    <div id="meal-list-merenda_pomeriggio" class="meal-items-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                    <button class="btn-add-food" onclick="openAddFoodModal('merenda_pomeriggio')">➕ Aggiungi merenda pomeridiana</button>
+                </div>
+
+                <!-- 5. Cena -->
+                <div class="meal-section">
+                    <div class="meal-header">
+                        <h3 class="meal-title"><span>🥗</span> Cena</h3>
+                        <span id="meal-calories-cena" class="meal-calories-badge">0 kcal</span>
+                    </div>
+                    <div id="meal-list-cena" class="meal-items-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                    <button class="btn-add-food" onclick="openAddFoodModal('cena')">➕ Aggiungi cibo a cena</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ADD FOOD MODAL -->
+    <div id="add-food-modal" class="modal-overlay">
+        <div class="glass-card" style="width: 90%; max-width: 500px; padding: 1.5rem; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem; margin-bottom: 1.25rem;">
+                <h3 id="modal-meal-title" style="font-family: 'Montserrat', sans-serif; font-size: 1.15rem; color: #fff; margin: 0;">Aggiungi Alimento</h3>
+                <button onclick="closeAddFoodModal()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            
+            <form id="add-food-form" onsubmit="submitFoodForm(event)">
+                <input type="hidden" id="form-food-date" name="date">
+                <input type="hidden" id="form-food-meal-type" name="meal_type">
+                
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                        <label style="font-size: 0.8rem; color: var(--text-secondary); text-align: left;">Descrizione alimento / quantità</label>
+                        <input type="text" id="form-food-input" name="raw_input" required placeholder="Es. 100g pasta al sugo, 1 banana" style="background: rgba(17, 24, 39, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-primary); border-radius: 8px; padding: 0.6rem; font-size: 0.85rem;">
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary); text-align: left;">Calorie stimate (kcal)</label>
+                            <input type="number" id="form-food-calories" name="est_calories" placeholder="Es. 350" style="background: rgba(17, 24, 39, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-primary); border-radius: 8px; padding: 0.6rem; font-size: 0.85rem;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary); text-align: left;">Carboidrati (g)</label>
+                            <input type="number" id="form-food-carbs" name="carbs" placeholder="Es. 45" style="background: rgba(17, 24, 39, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-primary); border-radius: 8px; padding: 0.6rem; font-size: 0.85rem;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary); text-align: left;">Proteine (g)</label>
+                            <input type="number" id="form-food-protein" name="protein" placeholder="Es. 15" style="background: rgba(17, 24, 39, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-primary); border-radius: 8px; padding: 0.6rem; font-size: 0.85rem;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary); text-align: left;">Grassi (g)</label>
+                            <input type="number" id="form-food-fat" name="fat" placeholder="Es. 8" style="background: rgba(17, 24, 39, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-primary); border-radius: 8px; padding: 0.6rem; font-size: 0.85rem;">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit" style="padding: 0.75rem; border-radius: 8px; background: linear-gradient(135deg, var(--color-purple), var(--color-cyan)); color: #fff; font-weight: 700; border: none; cursor: pointer; text-align: center; margin-top: 0.5rem; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);">Salva Alimento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Drawer -->
+    <div id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-drawer-header">
+            <h2>📊 Profilo & Statistiche</h2>
+            <button class="sidebar-drawer-close" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-drawer-body">
+            <!-- NAVIGAZIONE -->
+            <div class="sidebar-nav">
+                <a href="/dashboard" class="sidebar-nav-link">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </a>
+                <a href="/profile" class="sidebar-nav-link">
+                    <span class="nav-icon">👤</span> Profilo Atleta
+                </a>
+                <a href="/predictions" class="sidebar-nav-link">
+                    <span class="nav-icon">🔮</span> Stime Gara
+                </a>
+                <a href="/progress" class="sidebar-nav-link">
+                    <span class="nav-icon">📈</span> Progressi
+                </a>
+                <a href="/history" class="sidebar-nav-link">
+                    <span class="nav-icon">📂</span> Archivio Attività
+                </a>
+                <a href="/stretching" class="sidebar-nav-link">
+                    <span class="nav-icon">🧘</span> Stretching
+                </a>
+                <a href="/pain-log" class="sidebar-nav-link">
+                    <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+                <a href="/nutrition" class="sidebar-nav-link active">
+                    <span class="nav-icon">🥗</span> Alimentazione
+                </a>
+            </div>
+
+            <!-- CONTENUTO MINIMO SIDEBAR -->
+            <div class="glass-card" style="padding: 1rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04);">
+                <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; color: var(--color-purple); margin: 0 0 0.5rem 0;">Informazioni di Servizio</h3>
+                <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                    Utilizza il menu per spostarti tra le varie sezioni della tua preparazione atletica.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Chat Widget -->
+    <div class="copilot-chat-widget">
+        <button id="chat-toggle" class="chat-toggle-btn" onclick="toggleChat()">💬</button>
+        <div id="chat-box" class="chat-container-box">
+            <div class="chat-header">
+                <h3><span>🤖</span> Co-Pilot Coach Team</h3>
+                <button class="chat-close-btn" onclick="toggleChat()">&times;</button>
+            </div>
+            <div id="chat-messages" class="chat-messages">
+                <!-- Messages populated dynamically via JS -->
+            </div>
+            <div class="chat-input-area">
+                <div id="chat-preview" class="chat-preview-container">
+                    <img id="chat-preview-img" class="chat-preview-img" src="" alt="preview">
+                    <span id="chat-preview-name" class="chat-preview-name">file.jpg</span>
+                    <button class="chat-preview-cancel" onclick="cancelFile()">&times;</button>
+                </div>
+                <form id="chat-form" class="chat-input-row" enctype="multipart/form-data">
+                    <label class="chat-file-btn">
+                        📷
+                        <input type="file" id="chat-file-input" accept="image/*" style="display: none;">
+                    </label>
+                    <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Messaggio al team di coach..." required autocomplete="off">
+                    <button type="submit" class="chat-send-btn">➔</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for Selected Date & Month State
+        let selectedDateStr = new Date().toISOString().split('T')[0];
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth(); // 0-11
+        let loggedDates = []; // dates populated by API that have logs
+        
+        const monthNames = [
+            "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+            "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+        ];
+
+        function toggleSidebar() {
+            const drawer = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if (drawer && overlay) {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        // Calendar Render Logic
+        function renderCalendar() {
+            const grid = document.querySelector('.calendar-grid');
+            // Remove previous days cells (keep labels)
+            const cells = grid.querySelectorAll('.calendar-cell');
+            cells.forEach(c => c.remove());
+            
+            document.getElementById('calendar-month-year').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            
+            // First day of month (1-indexed day, 0-indexed month)
+            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay(); // Sunday=0, Monday=1, ...
+            // Shift so Monday is 0, Sunday is 6
+            const startOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+            
+            // Total days in current month
+            const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            // Total days in previous month
+            const prevTotalDays = new Date(currentYear, currentMonth, 0).getDate();
+
+            // 1. Previous month days (grayed out)
+            for (let i = startOffset - 1; i >= 0; i--) {
+                const dayNum = prevTotalDays - i;
+                const cell = document.createElement('div');
+                cell.className = 'calendar-cell other-month';
+                cell.textContent = dayNum;
+                grid.appendChild(cell);
+            }
+
+            // 2. Current month days
+            const todayStr = new Date().toISOString().split('T')[0];
+            for (let day = 1; day <= totalDays; day++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-cell';
+                cell.textContent = day;
+                
+                // Form date string (YYYY-MM-DD)
+                const tempDate = new Date(currentYear, currentMonth, day + 1); // offset zone
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                cell.setAttribute('data-date', dateStr);
+                
+                if (dateStr === todayStr) {
+                    cell.classList.add('today');
+                }
+                if (dateStr === selectedDateStr) {
+                    cell.classList.add('selected');
+                }
+                if (loggedDates.includes(dateStr)) {
+                    cell.classList.add('has-log');
+                }
+                
+                cell.addEventListener('click', function() {
+                    selectDate(dateStr);
+                });
+                grid.appendChild(cell);
+            }
+
+            // 3. Next month days to pad to a full grid (usually 42 cells total)
+            const totalCells = startOffset + totalDays;
+            const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            for (let i = 1; i <= remaining; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-cell other-month';
+                cell.textContent = i;
+                grid.appendChild(cell);
+            }
+        }
+
+        function prevMonth() {
+            if (currentMonth === 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else {
+                currentMonth--;
+            }
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            if (currentMonth === 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else {
+                currentMonth++;
+            }
+            renderCalendar();
+        }
+
+        function selectDate(dateStr) {
+            selectedDateStr = dateStr;
+            
+            // Re-render calendar so selection changes
+            renderCalendar();
+            
+            // Load food data for selected day
+            loadNutritionDay(dateStr);
+        }
+
+        // Fetch and Populate Nutrition for Selected Day
+        async function loadNutritionDay(dateStr) {
+            try {
+                const resp = await fetch(`/api/nutrition/day?date=${dateStr}`);
+                const data = await resp.json();
+                
+                // Update calendar logged dots list dynamically
+                loggedDates = data.logged_dates || [];
+                renderCalendar(); // refresh dots without changing selection
+                
+                // Update Header Day Title
+                const dObj = new Date(dateStr);
+                const options = { weekday: 'long', day: 'numeric', month: 'long' };
+                const friendlyDate = dObj.toLocaleDateString('it-IT', options);
+                
+                document.getElementById('nutrition-day-title').textContent = `Alimentazione di ${friendlyDate.charAt(0).toUpperCase() + friendlyDate.slice(1)}`;
+                
+                // Update Totals & Target
+                const totals = data.totals;
+                const targets = data.targets;
+                
+                document.getElementById('totals-calories-value').textContent = `${totals.calories} / ${targets.calories} kcal`;
+                const calPct = targets.calories > 0 ? Math.min(100, (totals.calories / targets.calories) * 100) : 0;
+                document.getElementById('calories-progress-bar').style.width = calPct + '%';
+                
+                // Macros ratios
+                document.getElementById('carbs-ratio-val').textContent = `${totals.carbs} / ${targets.carbs} g`;
+                const carbsPct = targets.carbs > 0 ? Math.min(100, (totals.carbs / targets.carbs) * 100) : 0;
+                document.getElementById('carbs-progress-bar').style.width = carbsPct + '%';
+
+                document.getElementById('protein-ratio-val').textContent = `${totals.protein} / ${targets.protein} g`;
+                const proteinPct = targets.protein > 0 ? Math.min(100, (totals.protein / targets.protein) * 100) : 0;
+                document.getElementById('protein-progress-bar').style.width = proteinPct + '%';
+
+                document.getElementById('fat-ratio-val').textContent = `${totals.fat} / ${targets.fat} g`;
+                const fatPct = targets.fat > 0 ? Math.min(100, (totals.fat / targets.fat) * 100) : 0;
+                document.getElementById('fat-progress-bar').style.width = fatPct + '%';
+                
+                // Update Caloric Balance Card
+                if (data.caloric_balance) {
+                    const cb = data.caloric_balance;
+                    document.getElementById('balance-in').textContent = `${cb.total_in} kcal`;
+                    document.getElementById('balance-bmr').textContent = `${cb.bmr} kcal`;
+                    document.getElementById('balance-active').textContent = `${cb.active_calories} kcal`;
+                    document.getElementById('balance-out').textContent = `${cb.total_out} kcal`;
+                    
+                    const statSpan = document.getElementById('balance-status');
+                    if (cb.balance > 0) {
+                        statSpan.textContent = `Surplus (+${cb.balance} kcal)`;
+                        statSpan.style.color = 'var(--color-pink)';
+                    } else if (cb.balance < 0) {
+                        statSpan.textContent = `Deficit (${cb.balance} kcal)`;
+                        statSpan.style.color = 'var(--color-cyan)';
+                    } else {
+                        statSpan.textContent = `Pareggio (0 kcal)`;
+                        statSpan.style.color = 'var(--color-yellow)';
+                    }
+                }
+                
+                // Grouped Meals Populate
+                const meals = data.meals;
+                const mealTypes = ['colazione', 'merenda_mattina', 'pranzo', 'merenda_pomeriggio', 'cena'];
+                
+                mealTypes.forEach(mType => {
+                    const listContainer = document.getElementById(`meal-list-${mType}`);
+                    const calBadge = document.getElementById(`meal-calories-${mType}`);
+                    
+                    const items = meals[mType] || [];
+                    let mealKcal = 0;
+                    let html = '';
+                    
+                    if (items.length > 0) {
+                        items.forEach(item => {
+                            mealKcal += item.est_calories;
+                            html += `
+                                <div class="meal-item">
+                                    <div>
+                                        <span class="meal-item-desc">${item.raw_input}</span>
+                                        <div class="meal-item-details" style="margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.25rem;">
+                                            <span class="macro-badge calories">${item.est_calories} kcal</span>
+                                            <span class="macro-badge carbs">${item.carbs}g carboidrati</span>
+                                            <span class="macro-badge protein">${item.protein}g proteine</span>
+                                            <span class="macro-badge fat">${item.fat}g grassi</span>
+                                        </div>
+                                    </div>
+                                    <div class="meal-item-actions">
+                                        <button class="btn-delete-item" onclick="deleteFoodLog(${item.id})" title="Elimina alimento">✕</button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html = '<p style="font-size:0.8rem; color:var(--text-muted); font-style:italic; margin:0.25rem 0;">Nessun alimento inserito per questo pasto.</p>';
+                    }
+                    
+                    listContainer.innerHTML = html;
+                    calBadge.textContent = `${mealKcal} kcal`;
+                });
+                
+            } catch (err) {
+                console.error("Errore nel caricamento nutrizionale: ", err);
+            }
+        }
+
+        // Modal Operations
+        function openAddFoodModal(mealType) {
+            const mealNamesFriendly = {
+                'colazione': 'Colazione',
+                'merenda_mattina': 'Merenda Mattutina',
+                'pranzo': 'Pranzo',
+                'merenda_pomeriggio': 'Merenda Pomeridiana',
+                'cena': 'Cena'
+            };
+            
+            document.getElementById('modal-meal-title').textContent = `Aggiungi cibo a: ${mealNamesFriendly[mealType]}`;
+            document.getElementById('form-food-date').value = selectedDateStr;
+            document.getElementById('form-food-meal-type').value = mealType;
+            
+            // Clear inputs
+            document.getElementById('form-food-input').value = '';
+            document.getElementById('form-food-calories').value = '';
+            document.getElementById('form-food-carbs').value = '';
+            document.getElementById('form-food-protein').value = '';
+            document.getElementById('form-food-fat').value = '';
+            
+            document.getElementById('add-food-modal').style.display = 'flex';
+        }
+
+        function closeAddFoodModal() {
+            document.getElementById('add-food-modal').style.display = 'none';
+        }
+
+        // Submit food form manually
+        async function submitFoodForm(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(document.getElementById('add-food-form'));
+            
+            try {
+                const resp = await fetch('/api/nutrition/add', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (resp.ok) {
+                    closeAddFoodModal();
+                    loadNutritionDay(selectedDateStr); // Reload current day data
+                } else {
+                    alert("Errore nell'inserimento dell'alimento.");
+                }
+            } catch (err) {
+                alert("Errore di rete: " + err.message);
+            }
+        }
+
+        // Delete logged food item
+        async function deleteFoodLog(logId) {
+            if (!confirm("Sei sicuro di voler eliminare questo alimento dal diario?")) return;
+            
+            try {
+                const resp = await fetch(`/api/nutrition/delete/${logId}`, {
+                    method: 'POST'
+                });
+                
+                if (resp.ok) {
+                    loadNutritionDay(selectedDateStr); // Reload
+                } else {
+                    alert("Errore durante l'eliminazione.");
+                }
+            } catch (err) {
+                alert("Errore di rete: " + err.message);
+            }
+        }
+
+        // Floating Chat Widget Toggling & Interactions
+        const chatBox = document.getElementById('chat-box');
+        const chatInput = document.getElementById('chat-input-text');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatFile = document.getElementById('chat-file-input');
+
+        function toggleChat() {
+            if (chatBox.style.display === 'flex') {
+                chatBox.style.display = 'none';
+            } else {
+                chatBox.style.display = 'flex';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
+
+        async function loadChatHistory() {
+            try {
+                const resp = await fetch('/api/chat/history');
+                const history = await resp.json();
+                chatMessages.innerHTML = '';
+                
+                if (history.length === 0) {
+                    chatMessages.innerHTML += `
+                        <div class="chat-msg-bubble assistant">
+                            Ciao! Sono MarathonCoachAI. Sono qui con il team di nutrizionisti e fisiologi. Come posso aiutarti oggi? Puoi chiedermi consigli, inviarmi note o caricare la foto di un pasto per tracciare le calorie!
+                        </div>
+                    `;
+                    return;
+                }
+                
+                history.forEach(msg => {
+                    appendMessage(msg.role, msg.message_text, msg.image_path);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } catch (err) {
+                console.error("Errore storico chat: ", err);
+            }
+        }
+
+        function appendMessage(role, text, imagePath = null) {
+            let imgHtml = '';
+            if (imagePath) {
+                imgHtml = `<img src="${imagePath}" class="chat-msg-img" alt="Context image">`;
+            }
+            chatMessages.innerHTML += `
+                <div class="chat-msg-bubble ${role}">
+                    ${imgHtml}
+                    ${text.replace(/\n/g, '<br>')}
+                </div>
+            `;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            const file = chatFile.files[0];
+            
+            if (!text && !file) return;
+            
+            chatInput.value = '';
+            
+            appendMessage('user', text || '(Immagine allegata)');
+            
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'chat-msg-bubble assistant typing-indicator';
+            typingIndicator.innerHTML = '<span style="font-style:italic;color:var(--text-secondary)">Il team sta elaborando...</span>';
+            chatMessages.appendChild(typingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            const formData = new FormData();
+            formData.append('message', text || '(Immagine allegata)');
+            if (file) {
+                formData.append('image', file);
+            }
+            
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await resp.json();
+                
+                typingIndicator.remove();
+                appendMessage('assistant', data.assistant_message.message_text);
+                
+                // If the chat log succeeded, let's refresh the current day's nutrition view in case a food item was logged via AI!
+                loadNutritionDay(selectedDateStr);
+            } catch (err) {
+                typingIndicator.remove();
+                appendMessage('assistant', "Errore nella comunicazione con il coach: " + err.message);
+            }
+        });
+
+        // Initialize Page
+        document.addEventListener('DOMContentLoaded', function() {
+            renderCalendar();
+            loadNutritionDay(selectedDateStr);
+            loadChatHistory();
+        });
+    </script>
+</body>
+</html>

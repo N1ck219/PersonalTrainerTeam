@@ -230,14 +230,31 @@
                 </div>
                 <div class="profile-stats" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                     <span>👟 Scarpa: <strong>{{ workout.shoe_used or 'N/D' }}</strong></span>
-                    <form action="/workout/{{ workout.id }}/delete" method="POST" onsubmit="return confirm('Sei sicuro di voler eliminare questa attività? L\'operazione non è reversibile.')" style="margin: 0;">
-                        <button type="submit" id="delete-workout-btn" style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; font-size: 0.78rem; font-weight: 700; padding: 0.3rem 0.75rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-family: 'Montserrat', sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.25)'" onmouseout="this.style.background='rgba(239,68,68,0.12)'">
-                            🗑 Elimina Attività
-                        </button>
-                    </form>
+                    <button type="button" id="delete-workout-btn" onclick="openDeleteModal()" style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; font-size: 0.78rem; font-weight: 700; padding: 0.3rem 0.75rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-family: 'Montserrat', sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.25)'" onmouseout="this.style.background='rgba(239,68,68,0.12)'">
+                        🗑 Elimina Attività
+                    </button>
+                    <!-- Hidden real delete form -->
+                    <form id="delete-workout-form" action="/workout/{{ workout.id }}/delete" method="POST" style="display:none;"></form>
                 </div>
             </div>
         </header>
+
+        <!-- DELETE CONFIRM MODAL -->
+        <div id="delete-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center;">
+            <div style="background:linear-gradient(135deg, rgba(17,24,39,0.98), rgba(30,10,20,0.98)); border:1px solid rgba(239,68,68,0.4); border-radius:18px; padding:2rem 2.5rem; max-width:420px; width:90%; box-shadow:0 25px 60px rgba(0,0,0,0.6); text-align:center;">
+                <div style="font-size:3rem; margin-bottom:0.75rem;">🗑️</div>
+                <h3 style="font-family:'Montserrat',sans-serif; font-size:1.1rem; font-weight:800; color:#fff; margin:0 0 0.5rem 0;">Elimina Attività</h3>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0 0 1.5rem 0; line-height:1.5;">Sei sicuro di voler eliminare questa attività?<br><strong style="color:#f87171;">L'operazione non è reversibile.</strong></p>
+                <div style="display:flex; gap:0.75rem; justify-content:center;">
+                    <button type="button" onclick="closeDeleteModal()" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-secondary); padding:0.6rem 1.2rem; border-radius:10px; cursor:pointer; font-weight:600; font-size:0.85rem; font-family:'Montserrat',sans-serif; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        Annulla
+                    </button>
+                    <button type="button" onclick="confirmDelete()" style="flex:1; background:linear-gradient(135deg,#dc2626,#b91c1c); border:none; color:#fff; padding:0.6rem 1.2rem; border-radius:10px; cursor:pointer; font-weight:700; font-size:0.85rem; font-family:'Montserrat',sans-serif; transition:all 0.2s; box-shadow:0 4px 15px rgba(220,38,38,0.4);" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                        ✓ Conferma Eliminazione
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- KPI SUMMARY CARDS -->
         <div class="kpi-grid">
@@ -367,6 +384,73 @@
                             <span>Stabilità del Passo:</span>
                             <strong>{{ pace_stability or 'N/D' }}</strong>
                         </div>
+                        {% if energy_cost_kcal %}
+                        <div class="efficiency-item">
+                            <span>Costo Energetico Stimato:</span>
+                            <strong style="color: var(--color-yellow);">{{ energy_cost_kcal }} kcal <span style="font-size: 0.72rem; font-weight: 400; color: var(--text-secondary); font-family: 'Inter', sans-serif;">(Peso: {{ weight_used }} kg)</span></strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- SWEAT RATE & HYDRATION CARD -->
+                <div class="glass-card">
+                    <h2 class="card-title" style="border-left-color: var(--color-cyan);">💧 Idratazione & Sudorazione</h2>
+                    
+                    <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; font-size: 0.82rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div>
+                            <span>Tasso di Sudorazione Stimato:</span>
+                            <strong style="color: #fff; font-size: 0.95rem; float: right;">{{ est_sweat_rate }} L/h</strong>
+                        </div>
+                        <div>
+                            <span>Perdita Liquidi Totale Stimata:</span>
+                            <strong style="color: #fff; font-size: 0.95rem; float: right;">{{ est_total_loss }} L</strong>
+                        </div>
+                        <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; margin-top: 0.25rem;">
+                            <span style="color: var(--color-cyan); font-weight: 600;">Reintegro Consigliato:</span>
+                            <ul style="margin: 0.4rem 0 0 1.2rem; padding: 0; line-height: 1.5; color: var(--text-primary);">
+                                <li>Fluidi da bere durante la corsa: <strong>{{ recommended_fluid_ml_h }} ml/ora</strong> (ad intervalli di 15-20 min)</li>
+                                <li>Fabbisogno Sodio/Elettroliti totale: <strong>{{ recommended_sodium_mg }} mg</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    {% if actual_sweat %}
+                    <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 0.85rem; margin-top: 1rem; font-size: 0.8rem;">
+                        <h4 style="margin: 0 0 0.4rem 0; color: var(--color-green); font-family: 'Montserrat', sans-serif;">📊 Test Sudorazione Reale Registrato</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem; color: var(--text-secondary);">
+                            <span>Tasso Effettivo: <strong style="color: #fff;">{{ actual_sweat.sweat_rate_l_h }} L/h</strong></span>
+                            <span>Peso Pre/Post: <strong style="color: #fff;">{{ actual_sweat.weight_pre }} kg &rarr; {{ actual_sweat.weight_post }} kg</strong></span>
+                            <span>Liquidi Consumati: <strong style="color: #fff;">{{ actual_sweat.fluids_ml }} ml</strong></span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Sweat calculator form -->
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 10px; padding: 1rem; margin-top: 1rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #fff; font-family: 'Montserrat', sans-serif;">🧪 Calcola Tasso di Sudorazione Reale</h4>
+                        <p style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.75rem; line-height: 1.4;">
+                            Pesati senza vestiti prima e dopo l'allenamento per calcolare la tua sudorazione effettiva.
+                        </p>
+                        <form action="/api/workout/{{ workout.id }}/sweat-rate" method="POST" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                <div>
+                                    <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Peso Pre (kg)</label>
+                                    <input type="number" step="0.05" name="weight_pre" required style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.35rem; color: #fff; font-size: 0.8rem;" placeholder="es. 76.2">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Peso Post (kg)</label>
+                                    <input type="number" step="0.05" name="weight_post" required style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.35rem; color: #fff; font-size: 0.8rem;" placeholder="es. 75.3">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Liquidi Consumati (ml)</label>
+                                <input type="number" name="fluids_ml" required style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.35rem; color: #fff; font-size: 0.8rem;" placeholder="es. 500">
+                            </div>
+                            <button type="submit" style="background: linear-gradient(135deg, var(--color-purple), var(--color-pink)); border: none; color: #fff; padding: 0.4rem; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: opacity 0.2s; font-family: 'Montserrat', sans-serif; margin-top: 0.25rem;">
+                                Salva & Ricalcola
+                            </button>
+                        </form>
                     </div>
                 </div>
 
@@ -944,7 +1028,10 @@
                     <span class="nav-icon">🧘</span> Stretching
                 </a>
                 <a href="/pain-log" class="sidebar-nav-link">
-                    <span class="nav-icon">⚠️</span> Registro Dolori
+                    <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+                <a href="/nutrition" class="sidebar-nav-link">
+                    <span class="nav-icon">🥗</span> Alimentazione
                 </a>
             </div>
 
@@ -966,6 +1053,30 @@
                 overlay.classList.toggle('active');
             }
         }
+
+        function openDeleteModal() {
+            const overlay = document.getElementById('delete-modal-overlay');
+            overlay.style.display = 'flex';
+        }
+
+        function closeDeleteModal() {
+            const overlay = document.getElementById('delete-modal-overlay');
+            overlay.style.display = 'none';
+        }
+
+        function confirmDelete() {
+            document.getElementById('delete-workout-form').submit();
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeDeleteModal();
+        });
+
+        // Close modal clicking outside the dialog
+        document.getElementById('delete-modal-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteModal();
+        });
     </script>
 </body>
 </html>
