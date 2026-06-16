@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stretching & Recupero - Marathon Personal Trainer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.1">
+</head>
+<body>
+    <!-- Gradient background effects -->
+    <div class="bg-glow bg-glow-purple"></div>
+    <div class="bg-glow bg-glow-blue"></div>
+
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- HEADER -->
+        <header class="dashboard-header glass-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="hamburger-menu-btn" onclick="toggleSidebar()" aria-label="Apri menu">☰</button>
+                <span class="logo-emoji" style="font-size: 2.2rem;">🧘</span>
+                <div class="logo-text">
+                    <h1 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Stretching & Recupero</h1>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.82rem; color: var(--text-secondary);">Esercizi e consigli di scarico post-allenamento basati sulle tue corse</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <div class="dashboard-grid" style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+            
+            <!-- SELECT WORKOUT PANEL -->
+            <div class="glass-card" style="height: fit-content;">
+                <h2 class="card-title" style="border-left-color: var(--color-cyan);">Seleziona Corsa</h2>
+                <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                    Scegli uno dei tuoi allenamenti recenti per visualizzare la routine di stretching consigliata in base a tipo, distanza e intensità della corsa.
+                </p>
+                <div style="margin-bottom: 1rem;">
+                    <select id="stretch-workout-select" onchange="loadStretching(this.value)" class="form-control" style="background: rgba(17,24,39,0.9); border: 1px solid var(--border-color); padding: 0.65rem 0.75rem; border-radius: 8px; width: 100%; color: var(--text-primary); font-size: 0.9rem; cursor: pointer;">
+                        <option value="">Prossimo Allenamento Pianificato</option>
+                        {% if planned_workouts %}
+                        <optgroup label="Allenamenti Pianificati">
+                            {% for p in planned_workouts %}
+                                <option value="planned_{{ p.id }}">{{ p.date }} - {{ p.type.upper() }} (Pianificato: {{ p.target_distance }} km)</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                        {% if executed_workouts %}
+                        <optgroup label="Cronologia Allenamenti Eseguiti">
+                            {% for wo in executed_workouts %}
+                                <option value="executed_{{ wo.id }}">{{ wo.date }} - {{ wo.workout_type.replace('_',' ').title() }} ({{ wo.distance_km }} km)</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- EXERCISES ROUTINE DETAILS -->
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; margin-bottom:1.25rem;">
+                    <h2 id="stretching-title" class="card-title" style="margin:0; border:none; padding:0;">Routine Consigliata</h2>
+                    <span id="workout-meta-badge" style="font-size:0.75rem; font-weight:700; background:rgba(6, 182, 212, 0.12); color:var(--color-cyan); padding:0.25rem 0.75rem; border-radius:6px; border:1px solid rgba(6, 182, 212, 0.25);">Caricamento...</span>
+                </div>
+                
+                <div id="stretching-list" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Drawer -->
+    <div id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-drawer-header">
+            <h2>📊 Profilo & Statistiche</h2>
+            <button class="sidebar-drawer-close" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-drawer-body">
+            <!-- NAVIGAZIONE -->
+            <div class="sidebar-nav">
+                <a href="/dashboard" class="sidebar-nav-link">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </a>
+                <a href="/profile" class="sidebar-nav-link">
+                    <span class="nav-icon">👤</span> Profilo Atleta
+                </a>
+                <a href="/predictions" class="sidebar-nav-link">
+                    <span class="nav-icon">🔮</span> Stime Gara
+                </a>
+                <a href="/progress" class="sidebar-nav-link">
+                    <span class="nav-icon">📈</span> Progressi
+                </a>
+                <a href="/history" class="sidebar-nav-link">
+                    <span class="nav-icon">📂</span> Archivio Attività
+                </a>
+                <a href="/stretching" class="sidebar-nav-link active">
+                    <span class="nav-icon">🧘</span> Stretching
+                </a>
+                <a href="/pain-log" class="sidebar-nav-link">
+                    <span class="nav-icon">⚠️</span> Registro Dolori
+                </a>
+            </div>
+
+            <!-- CONTENUTO MINIMO SIDEBAR -->
+            <div class="glass-card" style="padding: 1rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04);">
+                <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; color: var(--color-purple); margin: 0 0 0.5rem 0;">Informazioni di Servizio</h3>
+                <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                    Utilizza il menu per spostarti tra le varie sezioni della tua preparazione atletica.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Chat Widget -->
+    <div class="copilot-chat-widget">
+        <button id="chat-toggle" class="chat-toggle-btn" onclick="toggleChat()">💬</button>
+        <div id="chat-box" class="chat-container-box">
+            <div class="chat-header">
+                <h3><span>🤖</span> Co-Pilot Coach Team</h3>
+                <button class="chat-close-btn" onclick="toggleChat()">&times;</button>
+            </div>
+            <div id="chat-messages" class="chat-messages">
+                <!-- Messages populated dynamically via JS -->
+            </div>
+            <div class="chat-input-area">
+                <div id="chat-preview" class="chat-preview-container">
+                    <img id="chat-preview-img" class="chat-preview-img" src="" alt="preview">
+                    <span id="chat-preview-name" class="chat-preview-name">file.jpg</span>
+                    <button class="chat-preview-cancel" onclick="cancelFile()">&times;</button>
+                </div>
+                <form id="chat-form" class="chat-input-row" enctype="multipart/form-data">
+                    <label class="chat-file-btn">
+                        📷
+                        <input type="file" id="chat-file-input" accept="image/*" style="display: none;">
+                    </label>
+                    <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Messaggio al team di coach..." required autocomplete="off">
+                    <button type="submit" class="chat-send-btn">➔</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripting for Stretching and Chat -->
+    <script>
+        function toggleSidebar() {
+            const drawer = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if (drawer && overlay) {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        async function loadStretching(workoutId = '') {
+            const container = document.getElementById('stretching-list');
+            const badge = document.getElementById('workout-meta-badge');
+            container.innerHTML = '<p style="font-size:0.85rem; color:var(--text-secondary); text-align:center;">Caricamento esercizi...</p>';
+            try {
+                const url = `/api/stretching` + (workoutId ? `?workout_id=${workoutId}` : '');
+                const resp = await fetch(url);
+                const data = await resp.json();
+                
+                document.getElementById('stretching-title').textContent = data.title || 'Stretching consigliato';
+                
+                if (data.workout_found) {
+                    badge.style.display = 'inline-block';
+                    if (data.is_planned) {
+                        badge.textContent = `Pianificato · ${data.workout_distance} km · ~${data.workout_duration_min} min`;
+                        badge.style.background = 'rgba(167, 139, 250, 0.12)';
+                        badge.style.color = '#c084fc'; // Purple glow color
+                        badge.style.borderColor = 'rgba(167, 139, 250, 0.25)';
+                    } else {
+                        badge.textContent = `Eseguito · ${data.workout_distance} km · ${data.workout_duration_min} min · RPE ${data.workout_rpe}/10`;
+                        badge.style.background = 'rgba(6, 182, 212, 0.12)';
+                        badge.style.color = 'var(--color-cyan)';
+                        badge.style.borderColor = 'rgba(6, 182, 212, 0.25)';
+                    }
+                } else {
+                    badge.style.display = 'none';
+                }
+                
+                let html = '';
+                if (data.exercises && data.exercises.length > 0) {
+                    data.exercises.forEach(ex => {
+                        html += `
+                            <div class="stretching-exercise-card" style="padding: 1.25rem;">
+                                <div class="stretching-exercise-name" style="font-size:1rem;">${ex.name}</div>
+                                <div class="stretching-exercise-duration" style="font-size:0.82rem; margin-bottom:0.6rem;">⏱ Tempo: ${ex.duration}</div>
+                                <div class="stretching-exercise-desc" style="font-size:0.88rem; color:var(--text-primary);">${ex.description}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html = '<p class="no-data">Nessun esercizio specifico consigliato.</p>';
+                }
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<p style="color:var(--color-red); font-size:0.85rem; text-align:center;">Errore nel caricamento: ${err.message}</p>`;
+            }
+        }
+
+        // Chat Box Toggling & Interaction
+        const chatBox = document.getElementById('chat-box');
+        const chatInput = document.getElementById('chat-input-text');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatFile = document.getElementById('chat-file-input');
+        const chatPreview = document.getElementById('chat-preview');
+
+        function toggleChat() {
+            if (chatBox.style.display === 'flex') {
+                chatBox.style.display = 'none';
+            } else {
+                chatBox.style.display = 'flex';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
+
+        chatFile.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('chat-preview-img').src = e.target.result;
+                    document.getElementById('chat-preview-name').textContent = file.name;
+                    chatPreview.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function cancelFile() {
+            chatFile.value = '';
+            chatPreview.style.display = 'none';
+        }
+
+        async function loadChatHistory() {
+            try {
+                const resp = await fetch('/api/chat/history');
+                const history = await resp.json();
+                chatMessages.innerHTML = '';
+                
+                if (history.length === 0) {
+                    chatMessages.innerHTML += `
+                        <div class="chat-msg-bubble assistant">
+                            Ciao! Sono MarathonCoachAI. Sono qui con il team di nutrizionisti e fisiologi. Come posso aiutarti oggi? Puoi chiedermi consigli, inviarmi note o caricare la foto di un pasto per tracciare le calorie!
+                        </div>
+                    `;
+                    return;
+                }
+                
+                history.forEach(msg => {
+                    appendMessage(msg.role, msg.message_text, msg.image_path);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } catch (err) {
+                console.error("Errore storico chat: ", err);
+            }
+        }
+
+        function appendMessage(role, text, imagePath = null) {
+            let imgHtml = '';
+            if (imagePath) {
+                imgHtml = `<img src="${imagePath}" class="chat-msg-img" alt="Context image">`;
+            }
+            chatMessages.innerHTML += `
+                <div class="chat-msg-bubble ${role}">
+                    ${imgHtml}
+                    ${text.replace(/\n/g, '<br>')}
+                </div>
+            `;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            const file = chatFile.files[0];
+            
+            if (!text && !file) return;
+            
+            chatInput.value = '';
+            cancelFile();
+            
+            appendMessage('user', text || '(Immagine allegata)');
+            
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'chat-msg-bubble assistant typing-indicator';
+            typingIndicator.innerHTML = '<span style="font-style:italic;color:var(--text-secondary)">Il team sta elaborando...</span>';
+            chatMessages.appendChild(typingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            const formData = new FormData();
+            formData.append('message', text || '(Immagine allegata)');
+            if (file) {
+                formData.append('image', file);
+            }
+            
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await resp.json();
+                
+                typingIndicator.remove();
+                appendMessage('assistant', data.assistant_message.message_text);
+            } catch (err) {
+                typingIndicator.remove();
+                appendMessage('assistant', "Errore nella comunicazione con il coach team: " + err.message);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChatHistory();
+            loadStretching();
+        });
+    </script>
+</body>
+</html>

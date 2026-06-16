@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stime Tempi di Gara - Marathon Personal Trainer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.1">
+</head>
+<body>
+    <!-- Gradient background effects -->
+    <div class="bg-glow bg-glow-purple"></div>
+    <div class="bg-glow bg-glow-blue"></div>
+
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- HEADER -->
+        <header class="dashboard-header glass-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="hamburger-menu-btn" onclick="toggleSidebar()" aria-label="Apri menu">☰</button>
+                <span class="logo-emoji" style="font-size: 2.2rem;">🔮</span>
+                <div class="logo-text">
+                    <h1 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Stime Tempi di Gara</h1>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.82rem; color: var(--text-muted);">Predizioni dei tuoi potenziali risultati basate sulle prestazioni reali recenti</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- INTRO NOTE -->
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+            <h2 class="card-title" style="border-left-color: var(--color-cyan);">La Formula di Riegel</h2>
+            <p style="font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary); margin: 0;">
+                Le predizioni sottostanti sono calcolate tramite la formula fisiologica di **Riegel**:
+                <code style="background: rgba(255,255,255,0.06); padding: 0.2rem 0.4rem; border-radius: 4px; color: var(--color-purple); font-family: monospace;">T2 = T1 * (D2 / D1)^1.06</code>,
+                dove la tua migliore prestazione recente (velocità/passo migliore su distanze maggiori di 4.5 km) viene presa come riferimento per stimare i tempi su altre distanze classiche.
+            </p>
+        </div>
+
+        <!-- PREDICTIONS GRID -->
+        <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
+            <!-- 5K CARD -->
+            <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 2rem 1.5rem;">
+                <div>
+                    <span style="font-size: 2rem;">🏃‍♂️</span>
+                    <h3 style="font-family: 'Montserrat', sans-serif; font-size: 1.3rem; margin: 0.5rem 0; color: #fff;">5 Kilometri</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Distanza veloce / Test di soglia</p>
+                </div>
+                <div>
+                    <div style="font-size: 2.2rem; font-weight: 800; font-family: 'Montserrat', sans-serif; color: var(--color-green); margin-bottom: 0.25rem;">
+                        {{ predictions["5k"]["time"] }}
+                    </div>
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Ritmo: {{ predictions["5k"]["pace"] }}</span>
+                </div>
+            </div>
+
+            <!-- 10K CARD -->
+            <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 2rem 1.5rem;">
+                <div>
+                    <span style="font-size: 2rem;">⚡</span>
+                    <h3 style="font-family: 'Montserrat', sans-serif; font-size: 1.3rem; margin: 0.5rem 0; color: #fff;">10 Kilometri</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.5rem;">PB storico di riferimento: 48:55</p>
+                </div>
+                <div>
+                    <div style="font-size: 2.2rem; font-weight: 800; font-family: 'Montserrat', sans-serif; color: var(--color-cyan); margin-bottom: 0.25rem;">
+                        {{ predictions["10k"]["time"] }}
+                    </div>
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Ritmo: {{ predictions["10k"]["pace"] }}</span>
+                </div>
+            </div>
+
+            <!-- MEZZA MARATONA CARD -->
+            <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 2rem 1.5rem;">
+                <div>
+                    <span style="font-size: 2rem;">🏆</span>
+                    <h3 style="font-family: 'Montserrat', sans-serif; font-size: 1.3rem; margin: 0.5rem 0; color: #fff;">Mezza Maratona</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Distanza target (21.097 km)</p>
+                </div>
+                <div>
+                    <div style="font-size: 2.2rem; font-weight: 800; font-family: 'Montserrat', sans-serif; color: var(--color-purple); margin-bottom: 0.25rem;">
+                        {{ predictions["mezza"]["time"] }}
+                    </div>
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Ritmo: {{ predictions["mezza"]["pace"] }}</span>
+                </div>
+            </div>
+
+            <!-- MARATONA CARD -->
+            <div class="glass-card" style="text-align: center; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 2rem 1.5rem;">
+                <div>
+                    <span style="font-size: 2rem;">🌍</span>
+                    <h3 style="font-family: 'Montserrat', sans-serif; font-size: 1.3rem; margin: 0.5rem 0; color: #fff;">Maratona</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Distanza mitica (42.195 km)</p>
+                </div>
+                <div>
+                    <div style="font-size: 2.2rem; font-weight: 800; font-family: 'Montserrat', sans-serif; color: var(--color-pink); margin-bottom: 0.25rem;">
+                        {{ predictions["maratona"]["time"] }}
+                    </div>
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Ritmo: {{ predictions["maratona"]["pace"] }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Drawer -->
+    <div id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-drawer-header">
+            <h2>📊 Profilo & Statistiche</h2>
+            <button class="sidebar-drawer-close" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-drawer-body">
+            <!-- NAVIGAZIONE -->
+            <div class="sidebar-nav">
+                <a href="/dashboard" class="sidebar-nav-link">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </a>
+                <a href="/profile" class="sidebar-nav-link">
+                    <span class="nav-icon">👤</span> Profilo Atleta
+                </a>
+                <a href="/predictions" class="sidebar-nav-link active">
+                    <span class="nav-icon">🔮</span> Stime Gara
+                </a>
+                <a href="/progress" class="sidebar-nav-link">
+                    <span class="nav-icon">📈</span> Progressi
+                </a>
+                <a href="/history" class="sidebar-nav-link">
+                    <span class="nav-icon">📂</span> Archivio Attività
+                </a>
+                <a href="/stretching" class="sidebar-nav-link">
+                    <span class="nav-icon">🧘</span> Stretching
+                </a>
+                <a href="/pain-log" class="sidebar-nav-link">
+                    <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+            </div>
+
+            <!-- CONTENUTO MINIMO SIDEBAR -->
+            <div class="glass-card" style="padding: 1rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04);">
+                <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; color: var(--color-purple); margin: 0 0 0.5rem 0;">Informazioni di Servizio</h3>
+                <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                    Utilizza il menu per spostarti tra le varie sezioni della tua preparazione atletica.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Script -->
+    <script>
+        function toggleSidebar() {
+            const drawer = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if (drawer && overlay) {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+    </script>
+</body>
+</html>

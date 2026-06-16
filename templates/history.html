@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archivio Completo Attività - Marathon Personal Trainer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.1">
+</head>
+
+<body>
+    <!-- Gradient background effects -->
+    <div class="bg-glow bg-glow-purple"></div>
+    <div class="bg-glow bg-glow-blue"></div>
+
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- HEADER -->
+        <header class="dashboard-header glass-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="hamburger-menu-btn" onclick="toggleSidebar()" aria-label="Apri menu">☰</button>
+                <span class="logo-emoji" style="font-size: 2.2rem;">📂</span>
+                <div class="logo-text">
+                    <h1 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Archivio Completo Attività</h1>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.82rem; color: var(--text-muted);">Cronologia storica di tutti gli allenamenti caricati</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- FULL WIDTH HISTORY LOG -->
+        <div class="glass-card card-workouts-history">
+            <p class="history-helper"
+                style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                💡 Clicca su una riga qualsiasi per aprire la pagina di analisi dettagliata, telemetria e grafici interattivi del singolo allenamento.</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; width: 100px;">Dettagli</th>
+                            <th>Data</th>
+                            <th>Tipo</th>
+                            <th>Meteo</th>
+                            <th>Km</th>
+                            <th>Passo Medio</th>
+                            <th>Dislivello</th>
+                            <th>HR Max</th>
+                            <th>RPE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if workouts %}
+                        {% for item in workouts %}
+                        {% set w = item.obj %}
+                        {% set weather = item.weather %}
+                        <tr class="clickable-row" onclick="window.location.href='/workout/{{ w.id }}'"
+                            style="cursor: pointer;">
+                            <td style="text-align: center; vertical-align: middle; white-space: nowrap;">
+                                <span class="view-details-btn"
+                                    style="font-size: 0.75rem; background: rgba(139, 92, 246, 0.15); color: var(--color-purple); padding: 0.25rem 0.60rem; border-radius: 4px; border: 1px solid rgba(139, 92, 246, 0.3); font-weight: 600; transition: background 0.2s;">Apri
+                                    ➜</span>
+                            </td>
+                            <td>{{ w.date }}</td>
+                            <td><span class="workout-type-tag type-{{ w.workout_type or 'lento_corto' }}"
+                                    style="font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 4px; display: inline-block; background: rgba(255,255,255,0.05);">{{ (w.workout_type or 'lento_corto') | replace('_', ' ') | upper }}</span></td>
+                            <td style="font-size: 0.82rem; color: var(--text-secondary);">
+                                {% if weather.temp is not none %}
+                                    <span title="{{ weather.status }}">
+                                        {% if weather.status == "Soleggiato" %}☀️
+                                        {% elif weather.status == "Parzialmente Nuvoloso" %}🌤️
+                                        {% elif weather.status == "Nuvoloso" %}☁️
+                                        {% elif weather.status == "Pioggia" %}🌧️
+                                        {% elif weather.status == "Nebbia" %}🌫️
+                                        {% elif weather.status == "Neve" %}❄️
+                                        {% elif weather.status == "Temporale" %}⛈️
+                                        {% else %}🌤️{% endif %}
+                                        <strong>{{ weather.temp }}°C</strong>
+                                        <span style="font-size: 0.75rem; opacity: 0.7;">({{ weather.humidity }}%)</span>
+                                    </span>
+                                {% else %}
+                                    <span style="color: var(--text-muted); font-style: italic;">N/D</span>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ w.distance_km }} km</strong></td>
+                            <td>{{ w.pace_formatted }}/km</td>
+                            <td style="color: var(--color-green);">+{{ w.elevation_gain or 0 | int }}m</td>
+                            <td>{{ w.max_hr or 'N/D' }}</td>
+                            <td><span class="rpe-tag rpe-{{ w.rpe_score or 'none' }}">{{ w.rpe_score ~ '/10' if w.rpe_score else 'N/D' }}</span></td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="no-data-table">Nessun allenamento registrato. Carica un file GPX nella Dashboard per iniziare!</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Drawer -->
+    <div id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-drawer-header">
+            <h2>📊 Profilo & Statistiche</h2>
+            <button class="sidebar-drawer-close" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-drawer-body">
+            <!-- NAVIGAZIONE -->
+            <div class="sidebar-nav">
+                <a href="/dashboard" class="sidebar-nav-link">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </a>
+                <a href="/profile" class="sidebar-nav-link">
+                    <span class="nav-icon">👤</span> Profilo Atleta
+                </a>
+                <a href="/predictions" class="sidebar-nav-link">
+                    <span class="nav-icon">🔮</span> Stime Gara
+                </a>
+                <a href="/progress" class="sidebar-nav-link">
+                    <span class="nav-icon">📈</span> Progressi
+                </a>
+                <a href="/history" class="sidebar-nav-link active">
+                    <span class="nav-icon">📂</span> Archivio Attività
+                </a>
+                <a href="/stretching" class="sidebar-nav-link">
+                    <span class="nav-icon">🧘</span> Stretching
+                </a>
+                <a href="/pain-log" class="sidebar-nav-link">
+                    <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+            </div>
+
+            <!-- CONTENUTO MINIMO SIDEBAR -->
+            <div class="glass-card" style="padding: 1rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04);">
+                <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; color: var(--color-purple); margin: 0 0 0.5rem 0;">Informazioni di Servizio</h3>
+                <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                    Utilizza il menu per spostarti tra le varie sezioni della tua preparazione atletica.
+                </p>
+            </div>
+        </div>
+    </div>
+    <script>
+        function toggleSidebar() {
+            const drawer = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if (drawer && overlay) {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+    </script>
+</body>
+
+</html>

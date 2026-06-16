@@ -1,0 +1,1366 @@
+/* Design Tokens & Core Styling */
+:root {
+    --bg-dark: #090d16;
+    --card-bg: rgba(17, 24, 39, 0.65);
+    --border-color: rgba(255, 255, 255, 0.06);
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --color-purple: #8b5cf6;
+    --color-pink: #ec4899;
+    --color-cyan: #06b6d4;
+    --color-green: #10b981;
+    --color-yellow: #f59e0b;
+    --color-red: #ef4444;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Background decorative radial glows */
+.bg-glow {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.bg-glow-purple {
+    top: 5%;
+    left: 10%;
+    background-color: var(--color-purple);
+}
+
+.bg-glow-blue {
+    bottom: 10%;
+    right: 5%;
+    background-color: var(--color-cyan);
+}
+
+/* Layout Container */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Glassmorphism Card System */
+.glass-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Header Styling */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logo-emoji {
+    font-size: 2.5rem;
+}
+
+.logo-text h1 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    background: linear-gradient(135deg, #fff 30%, var(--text-secondary));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.logo-text p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.athlete-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.profile-meta {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.profile-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.profile-badge.target {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
+    color: #c084fc;
+}
+
+.profile-stats {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+.shoe-meta {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+}
+
+/* Grid Layout */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .athlete-profile {
+        align-items: flex-start;
+        text-align: left;
+    }
+}
+
+.grid-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.card-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+    color: #fff;
+    border-left: 3px solid var(--color-purple);
+    padding-left: 0.75rem;
+}
+
+/* Readiness Section */
+.readiness-display {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.readiness-score-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring__circle {
+    transition: stroke-dashoffset 0.35s;
+    transform-origin: 50% 50%;
+}
+
+.readiness-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.8rem;
+    font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.readiness-value span {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+.readiness-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.status-badge {
+    align-self: flex-start;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.status-eccellente {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: var(--color-green);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-buono {
+    background-color: rgba(6, 182, 212, 0.15);
+    color: var(--color-cyan);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.status-affaticato {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: var(--color-yellow);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-necessita_recupero {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--color-red);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.readiness-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.chart-container {
+    position: relative;
+    height: 200px;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+/* Nutrition section */
+.nutrition-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.calories-target h3 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+.calories-target .unit {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+}
+
+.calories-target p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.macros-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.macro-bar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.macro-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.macro-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.macro-bar .fill {
+    height: 100%;
+    border-radius: 4px;
+}
+
+.carbs .fill { background: linear-gradient(90deg, #a78bfa, var(--color-purple)); }
+.protein .fill { background: linear-gradient(90deg, #ec4899, #f43f5e); }
+.fat .fill { background: linear-gradient(90deg, #06b6d4, #0ea5e9); }
+
+.advice-note {
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+/* Next Workout details */
+.workout-plan-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.workout-plan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.workout-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.type-easy { background: rgba(16, 185, 129, 0.15); color: var(--color-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+.type-interval { background: rgba(239, 68, 68, 0.15); color: var(--color-red); border: 1px solid rgba(239, 68, 68, 0.3); }
+.type-tempo { background: rgba(245, 158, 11, 0.15); color: var(--color-yellow); border: 1px solid rgba(245, 158, 11, 0.3); }
+.type-long { background: rgba(139, 92, 246, 0.15); color: var(--color-purple); border: 1px solid rgba(139, 92, 246, 0.3); }
+
+.workout-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.workout-main-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.stat-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-lbl {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.stat-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.text-gradient {
+    background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.workout-instructions {
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.workout-instructions strong {
+    color: #fff;
+}
+
+.workout-instructions p {
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* History table */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    text-align: left;
+}
+
+th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+td {
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+tr:hover td {
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.shoe-tag {
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+.rpe-tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+}
+
+.rpe-1, .rpe-2, .rpe-3, .rpe-4 { background: rgba(16, 185, 129, 0.1); color: var(--color-green); }
+.rpe-5, .rpe-6, .rpe-7 { background: rgba(245, 158, 11, 0.1); color: var(--color-yellow); }
+.rpe-8, .rpe-9, .rpe-10 { background: rgba(239, 68, 68, 0.1); color: var(--color-red); }
+
+.no-data, .no-data-table {
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 1.5rem 0;
+}
+
+/* GPX Upload Form & Expandable Tables Custom Styling */
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group label {
+    font-weight: 500;
+}
+
+.form-control:focus, .form-control-file:focus {
+    outline: none;
+    border-color: var(--color-purple);
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(236,72,153,0.5) !important;
+}
+
+.btn-submit:active {
+    transform: translateY(0);
+}
+
+.arrow {
+    font-family: monospace;
+}
+
+/* Workout Tag Colors */
+.workout-type-tag.type-lento_corto {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+    color: var(--color-green) !important;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.workout-type-tag.type-lento_lungo {
+    background-color: rgba(6, 182, 212, 0.15) !important;
+    color: var(--color-cyan) !important;
+    border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.workout-type-tag.type-medio {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+    color: var(--color-yellow) !important;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.workout-type-tag.type-ripetute {
+    background-color: rgba(139, 92, 246, 0.15) !important;
+    color: var(--color-purple) !important;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.workout-type-tag.type-gara {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    color: var(--color-red) !important;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Details Sub-Table */
+.details-table th {
+    padding: 0.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid rgba(255,255,255,0.08);
+}
+
+.details-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.details-table tr:hover td {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.details-container {
+    animation: slideDown 0.25s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Lap Row Colors */
+.lap-row-warmup, .lap-row-cooldown {
+    background-color: rgba(245, 158, 11, 0.12) !important;
+}
+.lap-row-warmup:hover, .lap-row-cooldown:hover {
+    background-color: rgba(245, 158, 11, 0.18) !important;
+}
+
+.lap-row-rep-odd, .lap-row-rep-even {
+    background-color: rgba(139, 92, 246, 0.24) !important;
+}
+.lap-row-rep-odd:hover, .lap-row-rep-even:hover {
+    background-color: rgba(139, 92, 246, 0.32) !important;
+}
+
+.lap-row-rec-odd, .lap-row-rec-even {
+    background-color: rgba(139, 92, 246, 0.08) !important;
+}
+.lap-row-rec-odd:hover, .lap-row-rec-even:hover {
+    background-color: rgba(139, 92, 246, 0.14) !important;
+}
+
+.lap-row-default {
+    background-color: transparent;
+}
+
+/* Chart Header Container */
+.chart-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+/* Chart Row Container & Titles */
+.chart-row-container {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    padding: 0.75rem;
+}
+
+.chart-row-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+/* Ensure flex/grid items do not overflow */
+.grid-col, .glass-card, .table-wrapper {
+    min-width: 0;
+}
+
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: block;
+}
+
+/* Premium Form Controls Styling */
+.form-control, select.form-control {
+    background: rgba(17, 24, 39, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+    padding: 0.65rem 0.75rem !important;
+    font-size: 0.9rem !important;
+    width: 100% !important;
+    transition: all 0.25s ease-in-out !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
+    cursor: pointer !important;
+}
+
+.form-control:focus, select.form-control:focus {
+    border-color: var(--color-purple) !important;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.35), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    outline: none !important;
+}
+
+.form-control-file {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.15) !important;
+    padding: 1.25rem 1rem !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+    color: var(--text-primary) !important;
+    transition: all 0.25s ease-in-out !important;
+    cursor: pointer !important;
+}
+
+.form-control-file:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: var(--color-purple) !important;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.1) !important;
+}
+
+/* Premium styled Select styling reset to look consistent across all platforms */
+select.form-control {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxMicgaGVpZ2h0PScxMicgZmlsbD0nIzljYTNhZicgY2xhc3M9J2JpIGJpLWNoZXZyb24tZG93bicgdmlld0JveD0nMCAwIDE2IDE2Jz48cGF0aCBmaWxsLXJ1bGU9J2V2ZW5vZGQnIGQ9J00xLjY0NiA0LjY0NmEuNS41IDAgMCAxIC43MDggMEw4IDEwLjI5M2w1LjY0Ni01LjY0N2EuNS41IDAgMCAxIC43MDguNzA4bC02IDZhLjUuNSAwIDAgMS0uNzA4IDBsLTYtNmEuNS41IDAgMCAxIDAtLjcwOHonLz48L3N2Zz4=") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 1rem center !important;
+    background-size: 12px !important;
+    padding-right: 2.5rem !important;
+}
+
+/* Responsive adjustments for mobile devices */
+@media (max-width: 900px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .athlete-profile {
+        align-items: flex-start !important;
+        text-align: left !important;
+        width: 100%;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding-top: 1rem;
+        margin-top: 0.5rem;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 1rem 0.5rem !important;
+    }
+    
+    .container {
+        gap: 1rem !important;
+    }
+    
+    .glass-card {
+        padding: 1rem !important;
+        border-radius: 12px !important;
+    }
+    
+    .form-grid-2 {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+    
+    .form-grid-2 > * {
+        grid-column: span 1 !important;
+    }
+    
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem !important;
+    }
+    
+    .kpi-card {
+        padding: 0.75rem !important;
+    }
+    
+    .kpi-val {
+        font-size: 1.2rem !important;
+    }
+    
+    .workout-main-stats {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+
+    .chart-header-container {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem !important;
+    }
+    
+    .chart-toggle-bar {
+        justify-content: flex-start !important;
+        width: 100% !important;
+    }
+    
+    /* Enhance mobile table readability and spacing */
+    table {
+        font-size: 0.8rem !important;
+    }
+    th {
+        padding: 0.6rem 0.4rem !important;
+    }
+    td {
+        padding: 0.6rem 0.4rem !important;
+    }
+    
+    /* Mobile text and badges adjustment */
+    .logo-text h1 {
+        font-size: 1.3rem !important;
+    }
+    
+    .logo-emoji {
+        font-size: 2rem !important;
+    }
+    
+    .profile-meta {
+        flex-direction: column !important;
+        gap: 0.35rem !important;
+        align-items: flex-start !important;
+        width: 100% !important;
+    }
+    
+    .profile-badge {
+        font-size: 0.7rem !important;
+        padding: 0.2rem 0.5rem !important;
+        display: inline-block !important;
+        text-align: left !important;
+    }
+}
+
+/* Sidebar Drawer Layout */
+.sidebar-drawer {
+    position: fixed;
+    top: 0;
+    left: -320px;
+    width: 320px;
+    height: 100vh;
+    background: rgba(9, 13, 22, 0.95);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-drawer.open {
+    left: 0;
+}
+
+.sidebar-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-drawer-header h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(135deg, #a78bfa, #f472b6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.sidebar-drawer-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.75rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.sidebar-drawer-close:hover {
+    color: var(--text-primary);
+}
+
+.sidebar-drawer-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* Sidebar Drawer Overlay */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.drawer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Sidebar Toggle Button & Hamburger */
+.btn-sidebar-toggle {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.6rem 1.2rem;
+    border-radius: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.btn-sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--color-purple);
+    transform: translateY(-1px);
+}
+
+.hamburger-menu-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+    line-height: 1;
+}
+
+.hamburger-menu-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Navigation Links inside Sidebar */
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.9rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.sidebar-nav-link:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+}
+
+.sidebar-nav-link.active {
+    background: rgba(139, 92, 246, 0.12);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.nav-icon {
+    font-size: 1.15rem;
+}
+
+/* Responsive adjustments for drawer */
+@media (max-width: 500px) {
+    .sidebar-drawer {
+        width: 100%;
+        left: -100%;
+    }
+    .sidebar-drawer.open {
+        left: 0;
+    }
+}
+
+/* Predictions Table Styles */
+.predictions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+}
+
+.predictions-table th, .predictions-table td {
+    padding: 0.6rem;
+    font-size: 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.predictions-table th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+}
+
+.predictions-table tr:last-child td {
+    border-bottom: none;
+}
+
+.predictions-table td strong {
+    color: var(--color-cyan);
+}
+
+/* Shoe Status Classes */
+.shoe-status-text.green { color: var(--color-green); }
+.shoe-status-text.yellow { color: var(--color-yellow); }
+.shoe-status-text.red { color: var(--color-red); }
+
+.shoe-progress-bar.green { background-color: var(--color-green); }
+.shoe-progress-bar.yellow { background-color: var(--color-yellow); }
+.shoe-progress-bar.red { background-color: var(--color-red); }
+
+/* Trend text status */
+.trend-text-status.green { color: var(--color-green); }
+.trend-text-status.secondary { color: var(--text-secondary); }
+
+/* Display Helpers */
+.display-block { display: block !important; }
+.display-none { display: none !important; }
+
+
+/* Floating Chat Widget */
+.copilot-chat-widget {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    font-family: 'Inter', sans-serif;
+}
+
+.chat-toggle-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-purple), var(--color-pink));
+    border: none;
+    color: white;
+    font-size: 1.8rem;
+    cursor: pointer;
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.chat-toggle-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 35px rgba(236, 72, 153, 0.5);
+}
+
+.chat-container-box {
+    position: absolute;
+    bottom: 75px;
+    right: 0;
+    width: 380px;
+    height: 500px;
+    background: rgba(9, 13, 22, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeInScale 0.25s ease-out;
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.chat-header {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.05));
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-header h3 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.chat-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.chat-close-btn:hover {
+    color: white;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.chat-msg-bubble {
+    max-width: 80%;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.chat-msg-bubble.user {
+    background: var(--color-purple);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+}
+
+.chat-msg-bubble.assistant {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+}
+
+.chat-msg-img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.chat-input-area {
+    border-top: 1px solid var(--border-color);
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.01);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.chat-input-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.chat-input-text {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.chat-input-text:focus {
+    outline: none;
+    border-color: var(--color-purple);
+}
+
+.chat-file-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.chat-file-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+.chat-send-btn {
+    background: var(--color-purple);
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.chat-send-btn:hover {
+    background: var(--color-pink);
+    transform: scale(1.05);
+}
+
+.chat-preview-container {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.chat-preview-img {
+    height: 30px;
+    width: 30px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.chat-preview-name {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-preview-cancel {
+    background: none;
+    border: none;
+    color: var(--color-red);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+/* Interactive Pain Log Styles */
+.pain-selector-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.pain-body-map {
+    width: 100%;
+    max-width: 160px;
+    height: auto;
+    filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.15));
+}
+
+.body-joint {
+    fill: rgba(255, 255, 255, 0.15);
+    stroke: rgba(255, 255, 255, 0.3);
+    stroke-width: 1.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.body-joint:hover {
+    fill: rgba(236, 72, 153, 0.5);
+    stroke: var(--color-pink);
+}
+
+.body-joint.active {
+    fill: var(--color-red);
+    stroke: #ff6b6b;
+    filter: drop-shadow(0 0 5px var(--color-red));
+}
+
+.pain-intensity-slider {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.pain-intensity-val {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--color-red);
+}
+
+.pain-logs-history {
+    max-height: 180px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+    width: 100%;
+}
+
+.pain-log-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pain-log-item-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.pain-badge {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--color-red);
+    padding: 0.15rem 0.40rem;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.7rem;
+}
+
+/* Stretching Styles */
+.stretching-exercise-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    padding: 0.85rem;
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    border-left: 3px solid var(--color-cyan);
+}
+
+.stretching-exercise-name {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: white;
+    margin-bottom: 0.25rem;
+}
+
+.stretching-exercise-duration {
+    font-size: 0.75rem;
+    color: var(--color-cyan);
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+}
+
+.stretching-exercise-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}

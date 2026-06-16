@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro Dolori & Prevenzione - Marathon Personal Trainer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.1">
+</head>
+<body>
+    <!-- Gradient background effects -->
+    <div class="bg-glow bg-glow-purple"></div>
+    <div class="bg-glow bg-glow-blue"></div>
+
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- HEADER -->
+        <header class="dashboard-header glass-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="hamburger-menu-btn" onclick="toggleSidebar()" aria-label="Apri menu">☰</button>
+                <span class="logo-emoji" style="font-size: 2.2rem;">⚠️</span>
+                <div class="logo-text">
+                    <h1 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #f87171, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Registro Dolori & Infortuni</h1>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.82rem; color: var(--text-secondary);">Mappa visiva per segnalare fastidi muscolari o articolari al Fisiologo AI</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <div class="dashboard-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem;">
+            
+            <!-- PANEL: LOG NEW PAIN -->
+            <div class="glass-card">
+                <h2 class="card-title" style="border-left-color: var(--color-red);">Segnala Nuovo Fastidio</h2>
+                <form id="pain-log-form" onsubmit="submitPainLog(event)">
+                    <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
+                        <div class="pain-selector-container" style="flex: 1; min-width: 160px;">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); text-align: center; margin-bottom: 0.5rem; display:block;">
+                                Clicca sulla mappa visiva per localizzare il fastidio:
+                            </span>
+                            <!-- SVG HUMAN BODY OUTLINE SELECTOR -->
+                            <svg viewBox="0 0 100 220" class="pain-body-map" style="max-width: 180px;">
+                                <!-- Human Silhouette Background -->
+                                <g fill="rgba(255, 255, 255, 0.05)" stroke="rgba(255, 255, 255, 0.15)" stroke-width="1.2">
+                                    <!-- Head -->
+                                    <circle cx="50" cy="22" r="11" />
+                                    <!-- Neck -->
+                                    <rect x="47" y="32" width="6" height="8" rx="2" />
+                                    <!-- Torso & Arms & Legs Contour -->
+                                    <path d="M 50,38 
+                                             L 28,42 C 22,43 20,49 20,55 
+                                             L 16,92 C 15,99 18,102 22,102 
+                                             L 24,102 C 27,102 28,99 28,92
+                                             L 30,57
+                                             L 34,112
+                                             L 32,162
+                                             L 33,207 C 33,211 39,211 39,207
+                                             L 41,162
+                                             L 46,117
+                                             L 50,117
+                                             L 54,117
+                                             L 59,162
+                                             L 61,207 C 61,211 67,211 67,207
+                                             L 68,162
+                                             L 66,112
+                                             L 70,57
+                                             L 72,92 C 72,99 73,102 76,102
+                                             L 78,102 C 82,102 85,99 84,92
+                                             L 80,55 C 80,49 78,43 72,42
+                                             Z" />
+                                </g>
+
+                                <!-- Interactive Joint Hotspots (circles/rects) -->
+                                <!-- Testa/Collo -->
+                                <circle cx="50" cy="22" r="8" class="body-joint" data-part="Testa/Collo" />
+                                
+                                <!-- Spalla Sinistra & Destra -->
+                                <circle cx="28" cy="42" r="6" class="body-joint" data-part="Spalla Sinistra" />
+                                <circle cx="72" cy="42" r="6" class="body-joint" data-part="Spalla Destra" />
+                                
+                                <!-- Gomito Sinistro & Destro -->
+                                <circle cx="20" cy="78" r="5" class="body-joint" data-part="Gomito Sinistro" />
+                                <circle cx="80" cy="78" r="5" class="body-joint" data-part="Gomito Destro" />
+                                
+                                <!-- Schiena/Busto -->
+                                <rect x="42" y="52" width="16" height="35" rx="3" class="body-joint" data-part="Schiena/Busto" />
+                                
+                                <!-- Anca Sinistra & Destra -->
+                                <circle cx="37" cy="108" r="7" class="body-joint" data-part="Anca Sinistra" />
+                                <circle cx="63" cy="108" r="7" class="body-joint" data-part="Anca Destra" />
+                                
+                                <!-- Ginocchio Sinistro & Destro -->
+                                <circle cx="36" cy="153" r="7" class="body-joint" data-part="Ginocchio Sinistro" />
+                                <circle cx="64" cy="153" r="7" class="body-joint" data-part="Ginocchio Destro" />
+                                
+                                <!-- Polpaccio/Tibia Sinistra & Destra -->
+                                <rect x="32" y="168" width="8" height="25" rx="2" class="body-joint" data-part="Polpaccio/Tibia Sinistra" />
+                                <rect x="60" y="168" width="8" height="25" rx="2" class="body-joint" data-part="Polpaccio/Tibia Destra" />
+                                
+                                <!-- Caviglia/Piede Sinistro & Destro -->
+                                <circle cx="36" cy="205" r="6" class="body-joint" data-part="Caviglia/Piede Sinistro" />
+                                <circle cx="64" cy="205" r="6" class="body-joint" data-part="Caviglia/Piede Destro" />
+                            </svg>
+                        </div>
+                        
+                        <div style="flex: 1.5; min-width: 240px; display: flex; flex-direction: column; gap: 1rem;">
+                            <div>
+                                <label for="pain-body-part" style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">Parte Selezionata:</label>
+                                <input type="text" id="pain-body-part" readonly placeholder="Seleziona cliccando sulla mappa visiva" required
+                                    style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 8px; width: 100%; color: var(--text-primary); font-size: 0.85rem; text-align: center; font-weight: 700;">
+                            </div>
+
+                            <div>
+                                <label for="pain-intensity" style="font-size: 0.8rem; color: var(--text-secondary); display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span>Intensità Dolore:</span>
+                                    <span id="pain-intensity-val" class="pain-intensity-val" style="font-size: 1.1rem;">5/10</span>
+                                </label>
+                                <input type="range" id="pain-intensity" min="1" max="10" value="5" class="pain-intensity-slider"
+                                    oninput="document.getElementById('pain-intensity-val').textContent = this.value + '/10'"
+                                    style="width: 100%; accent-color: var(--color-red); cursor: pointer;">
+                            </div>
+
+                            <div>
+                                <label for="pain-notes" style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">Note e Sintomi Rilevati:</label>
+                                <textarea id="pain-notes" rows="3" placeholder="Descrivi il tipo di fastidio (es. pungente, sordo) e quando si manifesta..." 
+                                    style="background: rgba(17,24,39,0.9); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 8px; width: 100%; color: var(--text-primary); font-size: 0.85rem; resize: vertical; font-family: inherit;"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, var(--color-red), #b91c1c); border: none; padding: 0.75rem 1.5rem; font-weight: 700; border-radius: 8px; width: 100%; color: white; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);">
+                                Salva e Invia al Fisiologo AI
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- PANEL: HISTORICAL LOGS -->
+            <div class="glass-card" style="display: flex; flex-direction: column;">
+                <h2 class="card-title" style="border-left-color: var(--color-purple);">Cronologia Fastidi</h2>
+                <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    Storico dei dolori segnalati per monitorare il recupero ed eventuali patologie ricorrenti.
+                </p>
+                <div id="pain-history-list" style="flex: 1; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Drawer -->
+    <div id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-drawer-header">
+            <h2>📊 Profilo & Statistiche</h2>
+            <button class="sidebar-drawer-close" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-drawer-body">
+            <!-- NAVIGAZIONE -->
+            <div class="sidebar-nav">
+                <a href="/dashboard" class="sidebar-nav-link">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </a>
+                <a href="/profile" class="sidebar-nav-link">
+                    <span class="nav-icon">👤</span> Profilo Atleta
+                </a>
+                <a href="/predictions" class="sidebar-nav-link">
+                    <span class="nav-icon">🔮</span> Stime Gara
+                </a>
+                <a href="/progress" class="sidebar-nav-link">
+                    <span class="nav-icon">📈</span> Progressi
+                </a>
+                <a href="/history" class="sidebar-nav-link">
+                    <span class="nav-icon">📂</span> Archivio Attività
+                </a>
+                <a href="/stretching" class="sidebar-nav-link">
+                    <span class="nav-icon">🧘</span> Stretching
+                </a>
+                <a href="/pain-log" class="sidebar-nav-link active">
+                    <span class="nav-icon">⚠️</span> Registro Dolori
+                </a>
+            </div>
+
+            <!-- CONTENUTO MINIMO SIDEBAR -->
+            <div class="glass-card" style="padding: 1rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04);">
+                <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; color: var(--color-purple); margin: 0 0 0.5rem 0;">Informazioni di Servizio</h3>
+                <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                    Utilizza il menu per spostarti tra le varie sezioni della tua preparazione atletica.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Chat Widget -->
+    <div class="copilot-chat-widget">
+        <button id="chat-toggle" class="chat-toggle-btn" onclick="toggleChat()">💬</button>
+        <div id="chat-box" class="chat-container-box">
+            <div class="chat-header">
+                <h3><span>🤖</span> Co-Pilot Coach Team</h3>
+                <button class="chat-close-btn" onclick="toggleChat()">&times;</button>
+            </div>
+            <div id="chat-messages" class="chat-messages">
+                <!-- Messages populated dynamically via JS -->
+            </div>
+            <div class="chat-input-area">
+                <div id="chat-preview" class="chat-preview-container">
+                    <img id="chat-preview-img" class="chat-preview-img" src="" alt="preview">
+                    <span id="chat-preview-name" class="chat-preview-name">file.jpg</span>
+                    <button class="chat-preview-cancel" onclick="cancelFile()">&times;</button>
+                </div>
+                <form id="chat-form" class="chat-input-row" enctype="multipart/form-data">
+                    <label class="chat-file-btn">
+                        📷
+                        <input type="file" id="chat-file-input" accept="image/*" style="display: none;">
+                    </label>
+                    <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Messaggio al team di coach..." required autocomplete="off">
+                    <button type="submit" class="chat-send-btn">➔</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripting for Pain Logs and Chat -->
+    <script>
+        function toggleSidebar() {
+            const drawer = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if (drawer && overlay) {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        // Interactive Body Joint click selector
+        document.querySelectorAll('.body-joint').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.body-joint').forEach(el => el.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('pain-body-part').value = this.getAttribute('data-part');
+            });
+        });
+
+        // Pain Logs History Loader
+        async function loadPainLogs() {
+            const container = document.getElementById('pain-history-list');
+            container.innerHTML = '';
+            try {
+                const resp = await fetch('/api/pain-logs');
+                const logs = await resp.json();
+                
+                if (logs.length === 0) {
+                    container.innerHTML = '<p class="no-data" style="padding:1.5rem 0; text-align:center;">Nessun dolore registrato di recente.</p>';
+                    return;
+                }
+                
+                logs.forEach(log => {
+                    const dateObj = new Date(log.date);
+                    const dateStr = dateObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+                    container.innerHTML += `
+                        <div class="pain-log-item" style="padding: 0.75rem 1rem;">
+                            <div class="pain-log-item-meta">
+                                <strong style="font-size:0.85rem; color:white;">${log.body_part}</strong>
+                                <span style="color:var(--text-secondary); font-size:0.75rem; margin-top:0.15rem;">${dateStr} - ${log.notes || 'Nessuna nota aggiuntiva'}</span>
+                            </div>
+                            <span class="pain-badge" style="font-size:0.75rem;">Intensità: ${log.intensity}/10</span>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                container.innerHTML = `<p style="color:var(--color-red); font-size:0.85rem; text-align:center;">Errore caricamento cronologia.</p>`;
+            }
+        }
+
+        async function submitPainLog(e) {
+            e.preventDefault();
+            const part = document.getElementById('pain-body-part').value;
+            const intensity = document.getElementById('pain-intensity').value;
+            const notes = document.getElementById('pain-notes').value;
+            
+            if (!part) {
+                alert("Per favore seleziona una parte del corpo cliccando sulla mappa visiva.");
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('body_part', part);
+            formData.append('intensity', intensity);
+            formData.append('notes', notes);
+            
+            try {
+                const resp = await fetch('/api/pain-log', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (resp.ok) {
+                    document.getElementById('pain-notes').value = '';
+                    document.getElementById('pain-body-part').value = '';
+                    document.querySelectorAll('.body-joint').forEach(el => el.classList.remove('active'));
+                    loadPainLogs();
+                    alert("Dolore registrato con successo. Il Fisiologo AI ne terrà conto!");
+                } else {
+                    alert("Errore durante il salvataggio.");
+                }
+            } catch (err) {
+                alert("Errore di connessione: " + err.message);
+            }
+        }
+
+        // Chat Box Toggling & Interaction
+        const chatBox = document.getElementById('chat-box');
+        const chatInput = document.getElementById('chat-input-text');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatFile = document.getElementById('chat-file-input');
+        const chatPreview = document.getElementById('chat-preview');
+
+        function toggleChat() {
+            if (chatBox.style.display === 'flex') {
+                chatBox.style.display = 'none';
+            } else {
+                chatBox.style.display = 'flex';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
+
+        chatFile.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('chat-preview-img').src = e.target.result;
+                    document.getElementById('chat-preview-name').textContent = file.name;
+                    chatPreview.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function cancelFile() {
+            chatFile.value = '';
+            chatPreview.style.display = 'none';
+        }
+
+        async function loadChatHistory() {
+            try {
+                const resp = await fetch('/api/chat/history');
+                const history = await resp.json();
+                chatMessages.innerHTML = '';
+                
+                if (history.length === 0) {
+                    chatMessages.innerHTML += `
+                        <div class="chat-msg-bubble assistant">
+                            Ciao! Sono MarathonCoachAI. Sono qui con il team di nutrizionisti e fisiologi. Come posso aiutarti oggi? Puoi chiedermi consigli, inviarmi note o caricare la foto di un pasto per tracciare le calorie!
+                        </div>
+                    `;
+                    return;
+                }
+                
+                history.forEach(msg => {
+                    appendMessage(msg.role, msg.message_text, msg.image_path);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } catch (err) {
+                console.error("Errore storico chat: ", err);
+            }
+        }
+
+        function appendMessage(role, text, imagePath = null) {
+            let imgHtml = '';
+            if (imagePath) {
+                imgHtml = `<img src="${imagePath}" class="chat-msg-img" alt="Context image">`;
+            }
+            chatMessages.innerHTML += `
+                <div class="chat-msg-bubble ${role}">
+                    ${imgHtml}
+                    ${text.replace(/\n/g, '<br>')}
+                </div>
+            `;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            const file = chatFile.files[0];
+            
+            if (!text && !file) return;
+            
+            chatInput.value = '';
+            cancelFile();
+            
+            appendMessage('user', text || '(Immagine allegata)');
+            
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'chat-msg-bubble assistant typing-indicator';
+            typingIndicator.innerHTML = '<span style="font-style:italic;color:var(--text-secondary)">Il team sta elaborando...</span>';
+            chatMessages.appendChild(typingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            const formData = new FormData();
+            formData.append('message', text || '(Immagine allegata)');
+            if (file) {
+                formData.append('image', file);
+            }
+            
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await resp.json();
+                
+                typingIndicator.remove();
+                appendMessage('assistant', data.assistant_message.message_text);
+            } catch (err) {
+                typingIndicator.remove();
+                appendMessage('assistant', "Errore nella comunicazione con il coach team: " + err.message);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChatHistory();
+            loadPainLogs();
+        });
+    </script>
+</body>
+</html>

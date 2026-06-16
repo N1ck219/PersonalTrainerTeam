@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storico Peso - Marathon Personal Trainer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.1">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Gradient background effects -->
+    <div class="bg-glow bg-glow-purple"></div>
+    <div class="bg-glow bg-glow-blue"></div>
+
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- HEADER -->
+        <header class="dashboard-header glass-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="hamburger-menu-btn" onclick="toggleSidebar()" aria-label="Apri menu">☰</button>
+                <span class="logo-emoji" style="font-size: 2.2rem;">⚖️</span>
+                <div class="logo-text">
+                    <h1 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #a78bfa, #818cf8); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Storico Peso & Composizione</h1>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.82rem; color: var(--text-muted);">Tracciamento storico delle metriche della bilancia Garmin Connect</p>
+                </div>
+            </div>
+            <div>
+                <a href="/profile" class="btn-submit" style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff; text-decoration: none; font-weight: 600; display: inline-block;">Torna al Profilo</a>
+            </div>
+        </header>
+
+        <!-- CHARTS SECTION -->
+        <div class="dashboard-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+            <!-- Weight Trend Chart -->
+            <div class="glass-card">
+                <h2 class="card-title">📉 Andamento Peso Corporeo</h2>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="weightChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Body Fat Trend Chart -->
+            <div class="glass-card">
+                <h2 class="card-title">🧬 Composizione Corporea (% Massa Grassa)</h2>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="bodyFatChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLE SECTION -->
+        <div class="glass-card">
+            <h2 class="card-title">📂 Registro Storico Misure</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Peso (kg)</th>
+                            <th>Massa Grassa</th>
+                            <th>Massa Muscolare</th>
+                            <th>Acqua Corporea</th>
+                            <th>Massa Ossea</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if metrics_list %}
+                            {% for m in metrics_list %}
+                            <tr>
+                                <td><strong>{{ m.date.strftime('%d/%m/%Y') }}</strong></td>
+                                <td>{{ m.weight_kg }} kg</td>
+                                <td>
+                                    {% if m.body_fat_pct %}
+                                        <span style="color: var(--color-pink); font-weight: 600;">{{ m.body_fat_pct }}%</span>
+                                    {% else %}
+                                        <span style="color: var(--text-secondary);">N/D</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if m.muscle_mass_kg %}
+                                        <span style="color: var(--color-green);">{{ m.muscle_mass_kg }} kg</span>
+                                    {% else %}
+                                        <span style="color: var(--text-secondary);">N/D</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if m.water_pct %}
+                                        <span style="color: var(--color-cyan);">{{ m.water_pct }}%</span>
+                                    {% else %}
+                                        <span style="color: var(--text-secondary);">N/D</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if m.bone_mass_kg %}
+                                        {{ m.bone_mass_kg }} kg
+                                    {% else %}
+                                        <span style="color: var(--text-secondary);">N/D</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="no-data-table">Nessun dato storico trovato nel database. I dati verranno popolati automaticamente tramite il sync di Garmin Connect all'avvio.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Drawer -->
+    <div id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-drawer-header">
+            <h2>📊 Profilo & Statistiche</h2>
+            <button class="sidebar-drawer-close" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-drawer-body">
+            <div class="sidebar-nav">
+                <a href="/dashboard" class="sidebar-nav-link">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </a>
+                <a href="/profile" class="sidebar-nav-link active">
+                    <span class="nav-icon">👤</span> Profilo Atleta
+                </a>
+                <a href="/predictions" class="sidebar-nav-link">
+                    <span class="nav-icon">🔮</span> Stime Gara
+                </a>
+                <a href="/progress" class="sidebar-nav-link">
+                    <span class="nav-icon">📈</span> Progressi
+                </a>
+                <a href="/history" class="sidebar-nav-link">
+                    <span class="nav-icon">📂</span> Archivio Attività
+                </a>
+                <a href="/stretching" class="sidebar-nav-link">
+                    <span class="nav-icon">🧘</span> Stretching
+                </a>
+                <a href="/pain-log" class="sidebar-nav-link">
+                    <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Sidebar Scripts -->
+    <script>
+        function toggleSidebar() {
+            const drawer = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if (drawer && overlay) {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        // Parse Jinja JSON context values safely
+        const chartDates = JSON.parse('{{ chart_dates | safe }}');
+        const chartWeights = JSON.parse('{{ chart_weights | safe }}');
+        const chartBodyFat = JSON.parse('{{ chart_body_fat | safe }}');
+
+        // Render Weight Trend Chart
+        const ctxWeight = document.getElementById('weightChart').getContext('2d');
+        new Chart(ctxWeight, {
+            type: 'line',
+            data: {
+                labels: chartDates,
+                datasets: [{
+                    label: 'Peso Corporeo (kg)',
+                    data: chartWeights,
+                    borderColor: '#a78bfa',
+                    backgroundColor: 'rgba(167, 139, 250, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#818cf8',
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#f3f4f6' }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#9ca3af' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#9ca3af' }
+                    }
+                }
+            }
+        });
+
+        // Render Body Fat Trend Chart
+        const ctxBodyFat = document.getElementById('bodyFatChart').getContext('2d');
+        new Chart(ctxBodyFat, {
+            type: 'line',
+            data: {
+                labels: chartDates,
+                datasets: [{
+                    label: 'Massa Grassa (%)',
+                    data: chartBodyFat,
+                    borderColor: '#ec4899',
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#f43f5e',
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#f3f4f6' }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#9ca3af' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#9ca3af' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

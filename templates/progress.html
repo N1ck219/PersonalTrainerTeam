@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progressi Atletici - Marathon Personal Trainer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=1.1">
+</head>
+<body>
+    <!-- Gradient background effects -->
+    <div class="bg-glow bg-glow-purple"></div>
+    <div class="bg-glow bg-glow-blue"></div>
+
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- HEADER -->
+        <header class="dashboard-header glass-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="hamburger-menu-btn" onclick="toggleSidebar()" aria-label="Apri menu">☰</button>
+                <span class="logo-emoji" style="font-size: 2.2rem;">📈</span>
+                <div class="logo-text">
+                    <h1 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #a78bfa, #818cf8); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Progressi Atletici</h1>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.82rem; color: var(--text-muted);">Andamento dei tuoi ritmi medi e dei volumi di allenamento</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- LAYOUT GRID -->
+        <div class="dashboard-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <!-- LEFT COLUMN: RITMI DI ALLENAMENTO -->
+            <div class="grid-col flex-col">
+                <div class="glass-card">
+                    <h2 class="card-title" style="border-left-color: var(--color-yellow);">📈 Progressi sui Ritmi Medi</h2>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+                        Analisi comparativa del passo al km negli ultimi 30 giorni rispetto al mese precedente.
+                    </p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        {% if perf_profile %}
+                        {% for wtype in ["lento_corto", "lento_lungo", "medio", "ripetute", "gara"] %}
+                            {% set data = perf_profile.get(wtype) %}
+                            {% if data and data.count_last60d > 0 %}
+                            <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span class="workout-type-tag type-{{ wtype }}" style="font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 6px; font-weight: 700;">
+                                        {{ wtype | replace('_', ' ') | upper }}
+                                    </span>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">Uscite negli ultimi 60gg: <strong>{{ data.count_last60d }}</strong></span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-primary); align-items: center;">
+                                    <span>Passo Medio (30gg): <strong style="font-size: 1rem; color: #fff;">{{ data.avg_pace_formatted_last30d }}/km</strong></span>
+                                    <span class="trend-text-status {% if '-' in (data.trend_sec_vs_prev_month | string) or 'miglioramento' in data.trend_label %}green{% else %}secondary{% endif %}" style="font-size: 0.82rem; font-weight: 700;">
+                                        {{ data.trend_label }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        {% else %}
+                        <p style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">Nessun dato di allenamento sufficiente per calcolare i progressi.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: VOLUME SETTIMANALE -->
+            <div class="grid-col flex-col">
+                <div class="glass-card">
+                    <h2 class="card-title" style="border-left-color: var(--color-purple);">📊 Carico e Volumi</h2>
+                    
+                    {% set vol = perf_profile.get("weekly_volume") if perf_profile else None %}
+                    {% if vol %}
+                    <div style="background: rgba(255,255,255,0.02); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); margin-bottom: 1.5rem;">
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Volume Medio ultimi 30gg</span>
+                        <div style="font-size: 2.2rem; font-weight: 800; color: var(--color-purple); font-family: 'Montserrat', sans-serif; margin: 0.25rem 0;">
+                            {{ vol.avg_last4_km }} km<span style="font-size: 1.1rem; font-weight: 400; color: var(--text-secondary);"> / sett</span>
+                        </div>
+                        <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            Trend volume: <strong style="color: var(--color-pink);">{{ vol.trend_label }}</strong>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p style="font-size: 0.85rem; color: var(--text-muted); font-style: italic; margin-bottom: 1.5rem;">Dati di volume non ancora calcolati.</p>
+                    {% endif %}
+
+                    <!-- VOLUME HISTOGRAM PLACEHOLDER OR SIMPLE BAR CHART -->
+                    <div class="chart-container" style="height: 220px; position: relative;">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Drawer -->
+    <div id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-drawer-header">
+            <h2>📊 Profilo & Statistiche</h2>
+            <button class="sidebar-drawer-close" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-drawer-body">
+            <!-- NAVIGAZIONE -->
+            <div class="sidebar-nav">
+                <a href="/dashboard" class="sidebar-nav-link">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </a>
+                <a href="/profile" class="sidebar-nav-link">
+                    <span class="nav-icon">👤</span> Profilo Atleta
+                </a>
+                <a href="/predictions" class="sidebar-nav-link">
+                    <span class="nav-icon">🔮</span> Stime Gara
+                </a>
+                <a href="/progress" class="sidebar-nav-link active">
+                    <span class="nav-icon">📈</span> Progressi
+                </a>
+                <a href="/history" class="sidebar-nav-link">
+                    <span class="nav-icon">📂</span> Archivio Attività
+                </a>
+                <a href="/stretching" class="sidebar-nav-link">
+                    <span class="nav-icon">🧘</span> Stretching
+                </a>
+                <a href="/pain-log" class="sidebar-nav-link">
+                    <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+            </div>
+
+            <!-- CONTENUTO MINIMO SIDEBAR -->
+            <div class="glass-card" style="padding: 1rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04);">
+                <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; color: var(--color-purple); margin: 0 0 0.5rem 0;">Informazioni di Servizio</h3>
+                <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                    Utilizza il menu per spostarti tra le varie sezioni della tua preparazione atletica.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {% set workout_chart_data = [] %}
+    {% if workouts %}
+        {% for w in workouts[:6] | reverse %}
+            {% set date_str = w.date.strftime('%d/%m') if w.date else '' %}
+            {% if workout_chart_data.append({'date': date_str, 'distance': w.distance_km}) %}{% endif %}
+        {% endfor %}
+    {% endif %}
+    <script>
+        function toggleSidebar() {
+            const drawer = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if (drawer && overlay) {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        // Render simple chart for volume history if Chart.js is present
+        document.addEventListener("DOMContentLoaded", function() {
+            const ctx = document.getElementById('volumeChart').getContext('2d');
+            
+            const workoutChartData = JSON.parse('{{ workout_chart_data | tojson | safe }}');
+            const workoutLabels = workoutChartData.map(w => w.date);
+            const workoutDistances = workoutChartData.map(w => w.distance);
+
+            if (workoutDistances.length === 0) {
+                // fallback
+                workoutLabels.push("Nessun dato");
+                workoutDistances.push(0);
+            }
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: workoutLabels,
+                    datasets: [{
+                        label: 'Distanza Corsa (km)',
+                        data: workoutDistances,
+                        backgroundColor: 'rgba(139, 92, 246, 0.4)',
+                        borderColor: 'rgba(139, 92, 246, 1)',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Inter', size: 9 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#9ca3af', font: { family: 'Inter', size: 9 } }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
