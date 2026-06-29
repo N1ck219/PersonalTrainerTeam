@@ -154,3 +154,9 @@ GPX/
 data/uploads/*
 !data/uploads/.gitkeep
 static/data/uploads/chat
+Screenshot 2026-06-18 120635.png
+
+# Google OAuth2 credentials (NON committare mai questi file!)
+credentials.json
+token.json
+

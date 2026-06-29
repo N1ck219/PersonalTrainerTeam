@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manutenzione - Marathon Personal Trainer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.1">
+</head>
+
+<body>
+    <!-- Gradient background effects -->
+    <div class="bg-glow bg-glow-purple"></div>
+    <div class="bg-glow bg-glow-blue"></div>
+
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- HEADER -->
+        <header class="dashboard-header glass-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 0.75rem;">
+                <button class="hamburger-menu-btn" onclick="toggleSidebar()" aria-label="Apri menu">☰</button>
+                <span class="logo-emoji" style="font-size: 2.2rem;">⚙️</span>
+                <div class="logo-text">
+                    <h1 style="margin: 0; font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Manutenzione Database</h1>
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.82rem; color: var(--text-muted);">Gestione dello stato degli allenamenti pianificati e correzione anomalie</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- WORKOUT DAYS CONFIGURATION -->
+        <div class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem;">
+            <h2 style="font-family: 'Montserrat', sans-serif; font-size: 1.25rem; font-weight: 700; margin-top: 0; margin-bottom: 0.5rem; color: var(--text-primary);">📅 Programmazione Giorni Settimana</h2>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Configura in quali giorni della settimana desideri svolgere le varie sessioni. Il sistema multi-agente si adatterà programmando le uscite nei giorni scelti.
+            </p>
+
+            <form id="update-days-form" onsubmit="submitDaysForm(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                {% set days = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"] %}
+                
+                <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">🟢 Lento Corto:</label>
+                    <select name="lento_corto" class="form-control" style="background: rgba(17,24,39,0.9); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 8px; color: var(--text-primary); font-size: 0.85rem;">
+                        {% for d in days %}
+                        <option value="{{ d }}" {% if workout_days.lento_corto == d %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">🟠 Medio:</label>
+                    <select name="medio" class="form-control" style="background: rgba(17,24,39,0.9); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 8px; color: var(--text-primary); font-size: 0.85rem;">
+                        {% for d in days %}
+                        <option value="{{ d }}" {% if workout_days.medio == d %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">🔴 Ripetute:</label>
+                    <select name="ripetute" class="form-control" style="background: rgba(17,24,39,0.9); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 8px; color: var(--text-primary); font-size: 0.85rem;">
+                        {% for d in days %}
+                        <option value="{{ d }}" {% if workout_days.ripetute == d %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">🟡 Lento Lungo:</label>
+                    <select name="lento_lungo" class="form-control" style="background: rgba(17,24,39,0.9); border: 1px solid var(--border-color); padding: 0.6rem; border-radius: 8px; color: var(--text-primary); font-size: 0.85rem;">
+                        {% for d in days %}
+                        <option value="{{ d }}" {% if workout_days.lento_lungo == d %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div style="grid-column: 1 / -1; text-align: right; margin-top: 0.5rem;">
+                    <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, var(--color-purple), var(--color-pink)); border: none; padding: 0.65rem 1.5rem; font-weight: 700; border-radius: 8px; color: white; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(236,72,153,0.3);">
+                        💾 Salva Impostazioni Giorni
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- PLANNED WORKOUTS STATUS MANAGER -->
+        <div class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem;">
+            <h2 style="font-family: 'Montserrat', sans-serif; font-size: 1.25rem; font-weight: 700; margin-top: 0; margin-bottom: 0.5rem; color: var(--text-primary);">📋 Stato Allenamenti Pianificati</h2>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Se il sistema pensa che un allenamento sia stato completato per errore (ad esempio dopo il caricamento di un file GPX diverso), puoi impostare nuovamente il suo stato su <strong>Da Fare (Planned)</strong> qui sotto.
+            </p>
+
+            <div class="table-wrapper">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <th style="padding: 0.75rem 0.5rem;">Data</th>
+                            <th style="padding: 0.75rem 0.5rem;">Tipo</th>
+                            <th style="padding: 0.75rem 0.5rem;">Distanza Target</th>
+                            <th style="padding: 0.75rem 0.5rem;">Stato Attuale</th>
+                            <th style="padding: 0.75rem 0.5rem; text-align: right;">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if planned_workouts %}
+                        {% for w in planned_workouts %}
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background-color 0.2s;">
+                            <td style="padding: 0.75rem 0.5rem;"><strong>{{ w.date }}</strong></td>
+                            <td style="padding: 0.75rem 0.5rem;">
+                                <span class="workout-type-tag type-{{ w.type }}" style="font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px;">
+                                    {{ w.type | replace('_', ' ') | upper }}
+                                </span>
+                            </td>
+                            <td style="padding: 0.75rem 0.5rem;">{{ w.target_distance }} km</td>
+                            <td style="padding: 0.75rem 0.5rem;">
+                                {% if w.status == 'planned' %}
+                                <span style="background: rgba(124, 58, 237, 0.15); color: #c084fc; font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid rgba(124, 58, 237, 0.3);">
+                                    ⏳ Da Fare (Planned)
+                                </span>
+                                {% elif w.status == 'completed' %}
+                                <span style="background: rgba(34, 197, 94, 0.15); color: #4ade80; font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                                    ✅ Completato (Completed)
+                                </span>
+                                {% else %}
+                                <span style="background: rgba(156, 163, 175, 0.15); color: #d1d5db; font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid rgba(156, 163, 175, 0.3);">
+                                    ⏭️ Saltato (Skipped)
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 0.75rem 0.5rem; text-align: right;">
+                                <div style="display: inline-flex; gap: 0.5rem;">
+                                    <button onclick="updateStatus({{ w.id }}, 'planned')" style="background: rgba(124, 58, 237, 0.2); border: 1px solid rgba(124, 58, 237, 0.4); color: #c084fc; padding: 0.3rem 0.6rem; border-radius: 5px; font-size: 0.72rem; cursor: pointer; transition: all 0.2s; font-weight: 600;" onmouseover="this.style.background='rgba(124, 58, 237, 0.35)'" onmouseout="this.style.background='rgba(124, 58, 237, 0.2)'">
+                                        Rendi "Da Fare"
+                                    </button>
+                                    <button onclick="updateStatus({{ w.id }}, 'completed')" style="background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80; padding: 0.3rem 0.6rem; border-radius: 5px; font-size: 0.72rem; cursor: pointer; transition: all 0.2s; font-weight: 600;" onmouseover="this.style.background='rgba(34, 197, 94, 0.35)'" onmouseout="this.style.background='rgba(34, 197, 94, 0.2)'">
+                                        Rendi "Completato"
+                                    </button>
+                                    <button onclick="updateStatus({{ w.id }}, 'skipped')" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-secondary); padding: 0.3rem 0.6rem; border-radius: 5px; font-size: 0.72rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'">
+                                        Salta
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">Nessun allenamento pianificato presente nel database.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawer Overlay -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Drawer -->
+    <div id="sidebar-drawer" class="sidebar-drawer">
+        <div class="sidebar-drawer-header">
+            <h2>📊 Profilo & Statistiche</h2>
+            <button class="sidebar-drawer-close" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <div class="sidebar-drawer-body">
+            <!-- NAVIGAZIONE -->
+            <div class="sidebar-nav">
+                <a href="/dashboard" class="sidebar-nav-link">
+                    <span class="nav-icon">🏠</span> Dashboard
+                </a>
+                <a href="/profile" class="sidebar-nav-link">
+                    <span class="nav-icon">👤</span> Profilo Atleta
+                </a>
+                <a href="/predictions" class="sidebar-nav-link">
+                    <span class="nav-icon">🔮</span> Stime Gara
+                </a>
+                <a href="/progress" class="sidebar-nav-link">
+                    <span class="nav-icon">📈</span> Progressi
+                </a>
+                <a href="/history" class="sidebar-nav-link">
+                    <span class="nav-icon">📂</span> Archivio Attività
+                </a>
+                <a href="/stretching" class="sidebar-nav-link">
+                    <span class="nav-icon">🧘</span> Stretching
+                </a>
+                <a href="/pain-log" class="sidebar-nav-link">
+                    <span class="nav-icon">🩹</span> Registro Dolori
+                </a>
+                <a href="/nutrition" class="sidebar-nav-link">
+                    <span class="nav-icon">🥗</span> Alimentazione
+                </a>
+                <a href="/maintenance" class="sidebar-nav-link active">
+                    <span class="nav-icon">⚙️</span> Manutenzione
+                </a>
+            </div>
+
+            <!-- CONTENUTO MINIMO SIDEBAR -->
+            <div class="glass-card" style="padding: 1rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04);">
+                <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; color: var(--color-purple); margin: 0 0 0.5rem 0;">Informazioni di Servizio</h3>
+                <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0; line-height: 1.45;">
+                    Utilizza il menu per spostarti tra le varie sezioni della tua preparazione atletica.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            const drawer = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if (drawer && overlay) {
+                drawer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        async function submitDaysForm(e) {
+            e.preventDefault();
+            const form = document.getElementById('update-days-form');
+            const payload = {
+                lento_corto: form.lento_corto.value,
+                medio: form.medio.value,
+                ripetute: form.ripetute.value,
+                lento_lungo: form.lento_lungo.value
+            };
+            
+            try {
+                const response = await fetch('/api/maintenance/update-days', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    alert('Impostazioni dei giorni salvate con successo! Ricorda di generare nuovamente il piano per applicare i nuovi giorni.');
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert('Errore durante il salvataggio: ' + (data.detail || 'Errore sconosciuto'));
+                }
+            } catch (err) {
+                alert('Errore di rete: ' + err.message);
+            }
+        }
+
+        async function updateStatus(workoutId, newStatus) {
+            try {
+                const response = await fetch(`/api/maintenance/update-status/${workoutId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (response.ok) {
+                    // Quick reload to show updated status
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert('Errore durante l\'aggiornamento dello stato: ' + (data.detail || 'Errore sconosciuto'));
+                }
+            } catch (err) {
+                alert('Errore di rete: ' + err.message);
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -10,6 +10,38 @@ from database.database import (
 from agents.state import AgentState
 from agents.schemas import ManagerDecision, WeeklyPlan, HRZoneCalibration
 
+DAY_NAME_TO_WD = {
+    "Lunedì": 0,
+    "Martedì": 1,
+    "Mercoledì": 2,
+    "Giovedì": 3,
+    "Venerdì": 4,
+    "Sabato": 5,
+    "Domenica": 6
+}
+
+def get_workout_days() -> Dict[str, str]:
+    default_days = {
+        "lento_corto": "Martedì",
+        "medio": "Giovedì",
+        "ripetute": "Sabato",
+        "lento_lungo": "Domenica"
+    }
+    path = "data/workout_days.json"
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return default_days
+
+def save_workout_days(days: Dict[str, str]):
+    os.makedirs("data", exist_ok=True)
+    with open("data/workout_days.json", "w", encoding="utf-8") as f:
+        json.dump(days, f, indent=4)
+
+
 # Helper to initialize the LLM
 def get_llm(agent_name: Optional[str] = None):
     # Try fetching agent-specific key first
@@ -580,6 +612,8 @@ def trainer_node(state: AgentState) -> Dict[str, Any]:
         fallback_lungo = "6:05–6:20/km"
 
         # ── 5. Assemble prompt for Gemini ─────────────────────────────────────
+        days_config = get_workout_days()
+        
         def fmt_type_stats(key: str, label: str) -> str:
             t = perf_profile.get(key, {})
             if t.get("count_last60d", 0) == 0:
@@ -612,10 +646,11 @@ def trainer_node(state: AgentState) -> Dict[str, Any]:
             "Generi piani di allenamento personalizzati basandoti ESCLUSIVAMENTE sui dati storici reali "
             "dell'atleta, NON su valori generici.\n"
             "Il piano deve sempre contenere ESATTAMENTE 4 sessioni:\n"
-            "  1. lento_corto (Martedì)\n"
-            "  2. medio (Giovedì)\n"
-            "  3. ripetute (Sabato)\n"
-            "  4. lento_lungo (Domenica)\n"
+            f"  1. lento_corto ({days_config.get('lento_corto', 'Martedì')})\n"
+            f"  2. medio ({days_config.get('medio', 'Giovedì')})\n"
+            f"  3. ripetute ({days_config.get('ripetute', 'Sabato')})\n"
+            f"  4. lento_lungo ({days_config.get('lento_lungo', 'Domenica')})\n"
+            "Per la sessione di tipo 'medio', includi sempre esplicitamente nelle istruzioni un riscaldamento di 2.0 km (es. '2 km di riscaldamento lento + ... km a ritmo medio + 2 km di defaticamento').\n"
             "I ritmi target devono essere REALISTICI e basati sui dati storici forniti. "
             "Se i dati mostrano miglioramento, applica un incremento progressivo moderato (+3-8s/km). "
             "Se i dati mostrano rallentamento o bassa readiness, mantieni o riduci leggermente l'intensità. "
@@ -688,10 +723,7 @@ def trainer_node(state: AgentState) -> Dict[str, Any]:
 
                 # Save the 4 sessions to workouts_planned
                 TYPE_DAYS = {
-                    "lento_corto": 1,   # next Tuesday
-                    "medio": 3,         # next Thursday
-                    "ripetute": 5,      # next Saturday
-                    "lento_lungo": 6    # next Sunday
+                    k: DAY_NAME_TO_WD.get(v, 1) for k, v in days_config.items()
                 }
                 today_wd = today.weekday()  # Monday=0
                 for session in result.sessions:
@@ -734,10 +766,10 @@ def trainer_node(state: AgentState) -> Dict[str, Any]:
 
             except Exception as e:
                 print(f"Error in Trainer LLM (WeeklyPlan): {e}")
-                weekly_plan_dict = _fallback_weekly_plan(today, readiness_score, perf_profile, phase)
+                weekly_plan_dict = _fallback_weekly_plan(today, readiness_score, perf_profile, phase, days_config)
         else:
             # No LLM available: use rule-based fallback
-            weekly_plan_dict = _fallback_weekly_plan(today, readiness_score, perf_profile, phase)
+            weekly_plan_dict = _fallback_weekly_plan(today, readiness_score, perf_profile, phase, days_config)
 
         # ── 7. Update state queue ─────────────────────────────────────────────
         # Also keep legacy next_workout_plan populated for backward compatibility
@@ -773,7 +805,8 @@ def _fallback_weekly_plan(
     today: datetime.date,
     readiness: float,
     perf: Dict[str, Any],
-    phase: str
+    phase: str,
+    days_config: Dict[str, str]
 ) -> Dict[str, Any]:
     """Rule-based fallback when LLM is unavailable."""
     lc = perf.get("lento_corto", {})
@@ -800,7 +833,7 @@ def _fallback_weekly_plan(
         "sessions": [
             {
                 "workout_type": "lento_corto",
-                "day_label": "Martedì",
+                "day_label": days_config.get("lento_corto", "Martedì"),
                 "target_distance_km": round(9 * dist_factor, 1),
                 "target_pace_description": f"{pace_lento}/km",
                 "instructions": (
@@ -811,7 +844,7 @@ def _fallback_weekly_plan(
             },
             {
                 "workout_type": "medio",
-                "day_label": "Giovedì",
+                "day_label": days_config.get("medio", "Giovedì"),
                 "target_distance_km": round(12 * dist_factor, 1),
                 "target_pace_description": f"{pace_medio}/km",
                 "instructions": (
@@ -822,7 +855,7 @@ def _fallback_weekly_plan(
             },
             {
                 "workout_type": "ripetute",
-                "day_label": "Sabato",
+                "day_label": days_config.get("ripetute", "Sabato"),
                 "target_distance_km": round(10 * dist_factor, 1),
                 "target_pace_description": f"{pace_rip}/km per le frazioni",
                 "instructions": (
@@ -833,7 +866,7 @@ def _fallback_weekly_plan(
             },
             {
                 "workout_type": "lento_lungo",
-                "day_label": "Domenica",
+                "day_label": days_config.get("lento_lungo", "Domenica"),
                 "target_distance_km": round(16 * dist_factor, 1),
                 "target_pace_description": f"{pace_lungo}/km",
                 "instructions": (
@@ -994,18 +1027,18 @@ def responder_node(state: AgentState) -> Dict[str, Any]:
         }
         lines = [
             f"\n📅 **Piano Settimanale — {plan.get('phase', 'N/D')}**",
-            f"   Volume previsto: **{plan.get('weekly_volume_km', 0)} km**\n"
+            f"Volume previsto: **{plan.get('weekly_volume_km', 0)} km**\n"
         ]
         for s in plan.get("sessions", []):
             emoji = EMOJI.get(s.get("workout_type", ""), "▶")
             lines.append(
                 f"{emoji} **{s.get('day_label', '')} — {s.get('workout_type', '').replace('_', ' ').upper()}**"
             )
-            lines.append(f"   📏 {s.get('target_distance_km', 0)} km · ⏱ {s.get('target_pace_description', '')}")
-            lines.append(f"   {s.get('instructions', '')}")
+            lines.append(f"📏 {s.get('target_distance_km', 0)} km · ⏱ {s.get('target_pace_description', '')}")
+            lines.append(f"Focus: {s.get('instructions', '')}")
             if s.get("rationale"):
-                lines.append(f"   _(↳ {s.get('rationale')})_")
-            lines.append("")
+                lines.append(f"↳ {s.get('rationale')}")
+            lines.append("───────────────────")
         if plan.get("coach_notes"):
             lines.append(f"💬 **Note del Coach:** {plan['coach_notes']}")
         return "\n".join(lines)
@@ -1031,6 +1064,8 @@ def responder_node(state: AgentState) -> Dict[str, Any]:
         system_prompt = (
             "Sei il team di allenatori personali MarathonCoachAI (Trainer, Fisiologo, Nutrizionista).\n"
             "Comunica con tono motivante, professionale e chiaro in ITALIANO.\n"
+            "Questo messaggio verrà letto da smartphone: ottimizza la leggibilità allineando tutto a sinistra, senza rientri o spazi vuoti (non usare spazi all'inizio delle righe).\n"
+            "Per i titoli del piano settimanale usa il grassetto semplice (es. **Martedì — LENTO CORTO (8.0 km)**) invece di intestazioni markdown pesanti come '###'.\n"
             "Mantieni i messaggi puliti ed evita l'uso eccessivo di emoji (rimuovi simboli non necessari o ripetitivi, usali solo se hanno una reale utilità informativa o visiva per rendere il testo leggibile).\n"
             "L'atleta si prepara per: Maratonina di Udine (20 Set 2026) e Maratona di Roma (14 Mar 2027).\n"
             "Analizza il messaggio dell'atleta e rispondi in modo cordiale, fornendo feedback su allenamenti, nutrizione e stato di forma.\n"

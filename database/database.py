@@ -184,6 +184,35 @@ class PainLog(Base):
         return f"<PainLog(id={self.id}, date={self.date}, part={self.body_part}, intensity={self.intensity})>"
 
 
+class HeartRateIntraday(Base):
+    """
+    9. heart_rate_intraday: id (PK), timestamp, bpm.
+    """
+    __tablename__ = "heart_rate_intraday"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime, unique=True, nullable=False)
+    bpm: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<HeartRateIntraday(id={self.id}, ts={self.timestamp}, bpm={self.bpm})>"
+
+
+class SleepStageIntraday(Base):
+    """
+    10. sleep_stages_intraday: id (PK), timestamp, duration_seconds, stage.
+    """
+    __tablename__ = "sleep_stages_intraday"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime, unique=True, nullable=False)
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    stage: Mapped[str] = mapped_column(String, nullable=False)  # "light", "deep", "rem", "awake"
+
+    def __repr__(self) -> str:
+        return f"<SleepStageIntraday(id={self.id}, ts={self.timestamp}, dur={self.duration_seconds}s, stage={self.stage})>"
+
+
 def init_db() -> None:
     """Initialize the SQLite database, creating all tables if they do not exist."""
     Base.metadata.create_all(bind=engine)

@@ -13,11 +13,13 @@ from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
 from database.database import (
-    init_db, get_db, DailyMetric, WorkoutPlanned, WorkoutExecuted, NutritionLog, AgentInsight, Shoe, SessionLocal, ChatMessage, PainLog
+    init_db, get_db, DailyMetric, WorkoutPlanned, WorkoutExecuted, NutritionLog, AgentInsight, Shoe, SessionLocal, ChatMessage, PainLog,
+    HeartRateIntraday, SleepStageIntraday
 )
 from bot.telegram_bot import setup_bot
 from parser.parser import generate_mock_workout_data, parse_gpx_workout
 from agents.workflow import run_agent_pipeline
+from sync.samsung_health_sync import run_sync as samsung_run_sync, SyncReport
 
 # Load environment variables
 load_dotenv(override=True)
@@ -42,6 +44,12 @@ async def lifespan(app: FastAPI):
     
     # Start the daily scheduled sync background task
     start_daily_sync_scheduler()
+
+    # Trigger Samsung Health sync at startup (30 days lookback)
+    sync_samsung_health_startup(days_back=30)
+
+    # Start periodic Samsung Health sync scheduler
+    start_samsung_sync_scheduler()
     
     # 2. Startup: Configure and Start Telegram Bot in Long Polling (DISABLED per user request)
     logger_print("🤖 Bot Telegram disattivato su richiesta dell'utente.")
@@ -287,9 +295,13 @@ def sync_garmin_history_startup(days_back: int = 90):
                             if not metric.steps:
                                 metric.steps = 10000
                                 
-                            sleep_score = min(100.0, (metric.sleep_hours / 8.0) * 100.0)
-                            hrv_score = min(100.0, max(0.0, 80.0 + ((metric.hrv_score - 65) * 2.0)))
-                            rhr_score = min(100.0, max(0.0, 80.0 - ((metric.resting_hr - 55) * 3.0)))
+                            sleep_val = metric.sleep_hours if metric.sleep_hours is not None else 8.0
+                            hrv_val = metric.hrv_score if metric.hrv_score is not None else 65
+                            rhr_val = metric.resting_hr if metric.resting_hr is not None else 55
+                            
+                            sleep_score = min(100.0, (sleep_val / 8.0) * 100.0)
+                            hrv_score = min(100.0, max(0.0, 80.0 + ((hrv_val - 65) * 2.0)))
+                            rhr_score = min(100.0, max(0.0, 80.0 - ((rhr_val - 55) * 3.0)))
                             metric.readiness = round((sleep_score * 0.3) + (hrv_score * 0.4) + (rhr_score * 0.3), 1)
                             
                             db.commit()
@@ -329,6 +341,61 @@ def start_daily_sync_scheduler():
                 sync_garmin_history_startup(days_back=7)
                 
     t = threading.Thread(target=scheduler_loop, daemon=True)
+    t.start()
+
+
+def sync_samsung_health_startup(days_back: int = 30):
+    """
+    Scarica i dati Samsung Health da Google Drive per gli ultimi N giorni
+    in un thread daemon di background. Viene chiamato all'avvio del server.
+    """
+    import threading
+
+    def _run():
+        folder_id = os.getenv("SAMSUNG_DRIVE_FOLDER_ID", "").strip()
+        if not folder_id:
+            logger_print(
+                "[Samsung Sync] SAMSUNG_DRIVE_FOLDER_ID non impostato nel .env. "
+                "Imposta l'ID della cartella Drive con i dati Samsung Health."
+            )
+            return
+
+        logger_print(f"[Samsung Sync] Avvio sync (lookback: {days_back} giorni)...")
+        db = SessionLocal()
+        try:
+            report = samsung_run_sync(db, days_lookback=days_back)
+            logger_print(f"[Samsung Sync] {report.summary()}")
+            if report.errors:
+                for err in report.errors:
+                    logger_print(f"[Samsung Sync] ⚠️  {err}")
+        except Exception as e:
+            logger_print(f"[Samsung Sync] ❌ Errore: {e}")
+        finally:
+            db.close()
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+
+
+def start_samsung_sync_scheduler():
+    """
+    Spawns a background daemon thread that periodically runs the Samsung Health sync.
+    The interval is configured via SAMSUNG_SYNC_INTERVAL_HOURS (default: 6 ore).
+    """
+    import threading
+    import time
+
+    interval_hours = int(os.getenv("SAMSUNG_SYNC_INTERVAL_HOURS", "6"))
+    interval_sec = interval_hours * 3600
+
+    def _loop():
+        logger_print(f"[Samsung Scheduler] Scheduler avviato (intervallo: ogni {interval_hours}h).")
+        while True:
+            time.sleep(interval_sec)
+            logger_print("[Samsung Scheduler] Avvio sync periodico Samsung Health...")
+            sync_samsung_health_startup(days_back=7)
+
+    t = threading.Thread(target=_loop, daemon=True)
     t.start()
 
 def get_max_hr(db: Session) -> int:
@@ -669,7 +736,48 @@ def get_tapering_advisor(db: Session) -> dict:
     }
 
 
+@app.post("/api/sync-samsung-health")
+def trigger_samsung_sync(background_tasks: BackgroundTasks, days_back: int = 30, db: Session = Depends(get_db)):
+    """
+    Endpoint per triggering manuale del sync Samsung Health da Google Drive.
+    Esegue in background e restituisce immediatamente lo stato iniziale.
+    
+    Query params:
+      - days_back: quanti giorni di lookback (default 30)
+    
+    Esempio: POST /api/sync-samsung-health?days_back=7
+    """
+    folder_id = os.getenv("SAMSUNG_DRIVE_FOLDER_ID", "").strip()
+    if not folder_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "SAMSUNG_DRIVE_FOLDER_ID non configurato nel .env. "
+                "Apri la cartella Drive, copia l'ID dall'URL e aggiungilo al .env."
+            )
+        )
+
+    def _bg_sync():
+        db_inner = SessionLocal()
+        try:
+            logger_print(f"[Samsung Sync] Sync manuale avviato (lookback: {days_back} giorni)...")
+            report = samsung_run_sync(db_inner, days_lookback=days_back)
+            logger_print(f"[Samsung Sync] {report.summary()}")
+        except Exception as e:
+            logger_print(f"[Samsung Sync] ❌ Errore sync manuale: {e}")
+        finally:
+            db_inner.close()
+
+    background_tasks.add_task(_bg_sync)
+    return {
+        "status": "avviato",
+        "message": f"Sync Samsung Health avviato in background (ultimi {days_back} giorni). Controlla i log del server.",
+        "folder_id": folder_id[:8] + "..." if len(folder_id) > 8 else folder_id
+    }
+
+
 @app.post("/api/workout/{workout_id}/sweat-rate")
+
 def save_workout_sweat_rate(workout_id: int, weight_pre: float = Form(...), weight_post: float = Form(...), fluids_ml: float = Form(...), db: Session = Depends(get_db)):
     workout = db.query(WorkoutExecuted).filter(WorkoutExecuted.id == workout_id).first()
     if not workout:
@@ -718,21 +826,34 @@ def save_workout_sweat_rate(workout_id: int, weight_pre: float = Form(...), weig
 @app.post("/workout/{workout_id}/delete")
 def delete_workout(workout_id: int, db: Session = Depends(get_db)):
     """
-    Deletes a WorkoutExecuted record and any associated AgentInsight records,
+    Deletes a WorkoutExecuted record, its associated GPX file, and any associated AgentInsight records,
     then redirects the user to the history page.
     """
     workout = db.query(WorkoutExecuted).filter(WorkoutExecuted.id == workout_id).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Allenamento non trovato")
 
-    # Delete associated AgentInsight records (workout analysis, sweat rate, etc.)
+    # 1. Try to delete the associated GPX file
+    date_prefix = workout.date.strftime("%Y%m%d")
+    for folder in ["./data/uploads", "./GPX"]:
+        if os.path.exists(folder):
+            for file in os.listdir(folder):
+                if file.startswith(date_prefix) and file.endswith(".gpx"):
+                    try:
+                        os.remove(os.path.join(folder, file))
+                        logger_print(f"Deleted GPX file: {file}")
+                    except Exception as e:
+                        logger_print(f"Could not delete GPX file {file}: {e}")
+                    break
+
+    # 2. Delete associated AgentInsight records (workout analysis, sweat rate, etc.)
     related_insights = db.query(AgentInsight).filter(
         AgentInsight.memory_payload["workout_id"].as_integer() == workout_id
     ).all()
     for insight in related_insights:
         db.delete(insight)
 
-    # Delete the workout itself
+    # 3. Delete the workout itself
     db.delete(workout)
     db.commit()
 
@@ -777,15 +898,29 @@ def get_athlete_dashboard(request: Request, db: Session = Depends(get_db)):
     # 1. Fetch latest daily metrics & readiness
     readiness_data = None
     latest_metric = db.query(DailyMetric).filter(DailyMetric.readiness.isnot(None)).order_by(DailyMetric.date.desc()).first()
+    
+    # Calcola le baseline dinamiche sugli ultimi 30 giorni con dati disponibili
+    rhr_30d_avg = db.query(func.avg(DailyMetric.resting_hr)).filter(
+        DailyMetric.resting_hr.isnot(None)
+    ).order_by(DailyMetric.date.desc()).limit(30).scalar()
+    
+    hrv_30d_avg = db.query(func.avg(DailyMetric.hrv_score)).filter(
+        DailyMetric.hrv_score.isnot(None)
+    ).order_by(DailyMetric.date.desc()).limit(30).scalar()
+    
+    rhr_baseline = round(float(rhr_30d_avg), 1) if rhr_30d_avg else 55.0
+    hrv_baseline = round(float(hrv_30d_avg), 1) if hrv_30d_avg else 65.0
+
     if latest_metric:
+        readiness_val = latest_metric.readiness if latest_metric.readiness is not None else 70
         readiness_data = {
-            "readiness_score": latest_metric.readiness,
+            "readiness_score": readiness_val,
             "sleep_hours": latest_metric.sleep_hours,
             "resting_hr": latest_metric.resting_hr,
             "hrv_score": latest_metric.hrv_score,
-            "hrv_baseline": 65.0, # default or calculate
-            "rhr_baseline": 55.0,
-            "status": "eccellente" if latest_metric.readiness >= 85 else "buono" if latest_metric.readiness >= 70 else "affaticato" if latest_metric.readiness >= 50 else "necessita recupero"
+            "hrv_baseline": hrv_baseline,
+            "rhr_baseline": rhr_baseline,
+            "status": "eccellente" if readiness_val >= 85 else "buono" if readiness_val >= 70 else "affaticato" if readiness_val >= 50 else "necessita recupero"
         }
         
     # Last 10 days of metrics for Chart.js
@@ -805,6 +940,7 @@ def get_athlete_dashboard(request: Request, db: Session = Depends(get_db)):
     # 3. Fetch next planned workout
     next_planned = db.query(WorkoutPlanned).filter(WorkoutPlanned.status == "planned").order_by(WorkoutPlanned.date.asc()).first()
     next_workout_data = None
+    normalized_type = "lento_corto"
     if next_planned:
         # Default shoe recommendation logic mapping
         shoe = "Asics Gel-Nimbus 27"
@@ -870,6 +1006,92 @@ def get_athlete_dashboard(request: Request, db: Session = Depends(get_db)):
     from agents.nodes import build_athlete_performance_profile
     perf_profile = build_athlete_performance_profile(db)
 
+    # 4.5 Fetch intraday metrics for the latest available date
+    latest_hr_record = db.query(HeartRateIntraday).order_by(HeartRateIntraday.timestamp.desc()).first()
+    intraday_hr_data = []
+    selected_date_str = ""
+    if latest_hr_record:
+        target_day = latest_hr_record.timestamp.date()
+        selected_date_str = target_day.strftime("%d/%m/%Y")
+        
+        # Carica tutti i record di quel giorno
+        start_dt = datetime.datetime.combine(target_day, datetime.time.min)
+        end_dt = datetime.datetime.combine(target_day, datetime.time.max)
+        
+        hr_records = db.query(HeartRateIntraday).filter(
+            HeartRateIntraday.timestamp >= start_dt,
+            HeartRateIntraday.timestamp <= end_dt
+        ).order_by(HeartRateIntraday.timestamp.asc()).all()
+        
+        intraday_hr_data = [
+            {"time": r.timestamp.strftime("%H:%M"), "bpm": r.bpm}
+            for r in hr_records
+        ]
+
+    # Fasi del sonno per la notte più recente
+    latest_sleep_record = db.query(SleepStageIntraday).order_by(SleepStageIntraday.timestamp.desc()).first()
+    sleep_summary = {}
+    if latest_sleep_record:
+        # Prendi tutti i record delle ultime 24 ore rispetto all'ultimo record di sonno
+        sleep_ref = latest_sleep_record.timestamp
+        sleep_start = sleep_ref - datetime.timedelta(hours=14)
+        
+        sleep_records = db.query(SleepStageIntraday).filter(
+            SleepStageIntraday.timestamp >= sleep_start,
+            SleepStageIntraday.timestamp <= sleep_ref
+        ).order_by(SleepStageIntraday.timestamp.asc()).all()
+        
+        if sleep_records:
+            # Calcola orario di addormentamento (primo record) e sveglia (ultimo record)
+            # Troviamo il primo record non sveglio come effettivo addormentamento, se possibile,
+            # altrimenti usiamo il primo in assoluto.
+            non_awake_records = [r for r in sleep_records if not any(k in r.stage.lower() for k in ["awake", "veglia"])]
+            first_sleep = non_awake_records[0] if non_awake_records else sleep_records[0]
+            last_sleep = sleep_records[-1]
+            
+            wake_time = last_sleep.timestamp + datetime.timedelta(seconds=last_sleep.duration_seconds)
+            
+            bedtime_str = first_sleep.timestamp.strftime("%H:%M")
+            waketime_str = wake_time.strftime("%H:%M")
+            
+            # Somma minuti per fase
+            durations = {"deep": 0, "rem": 0, "light": 0, "awake": 0}
+            for r in sleep_records:
+                stage = r.stage.lower()
+                dur_min = r.duration_seconds / 60.0
+                if "deep" in stage or "profondo" in stage:
+                    durations["deep"] += dur_min
+                elif "rem" in stage:
+                    durations["rem"] += dur_min
+                elif "light" in stage or "leggero" in stage:
+                    durations["light"] += dur_min
+                else:
+                    durations["awake"] += dur_min
+            
+            # Arrotondamento
+            for k in durations:
+                durations[k] = round(durations[k])
+                
+            total_sleep_min = durations["deep"] + durations["rem"] + durations["light"]
+            total_time_in_bed_min = total_sleep_min + durations["awake"]
+            
+            pct = {}
+            if total_sleep_min > 0:
+                pct["deep"] = round((durations["deep"] / total_sleep_min) * 100)
+                pct["rem"] = round((durations["rem"] / total_sleep_min) * 100)
+                pct["light"] = round((durations["light"] / total_sleep_min) * 100)
+            else:
+                pct = {"deep": 0, "rem": 0, "light": 0}
+                
+            sleep_summary = {
+                "bedtime": bedtime_str,
+                "waketime": waketime_str,
+                "duration_hours": round(total_sleep_min / 60.0, 1),
+                "durations_min": durations,
+                "percentages": pct,
+                "total_bedtime_hours": round(total_time_in_bed_min / 60.0, 1)
+            }
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -883,7 +1105,10 @@ def get_athlete_dashboard(request: Request, db: Session = Depends(get_db)):
             "shoe_mileage": shoe_mileage,
             "predictions": predictions,
             "perf_profile": perf_profile,
-            "countdown": countdown_info
+            "countdown": countdown_info,
+            "intraday_hr": intraday_hr_data,
+            "sleep_summary": sleep_summary,
+            "selected_date_str": selected_date_str
         }
     )
 
@@ -1002,6 +1227,67 @@ def fetch_workout_weather(db: Session, workout: WorkoutExecuted) -> dict:
         print(f"Error fetching weather details: {e}")
 
     return weather_info
+
+
+@app.get("/maintenance", response_class=HTMLResponse)
+def get_maintenance(request: Request, db: Session = Depends(get_db)):
+    """
+    Renders the maintenance page to manage planned workouts and correct anomalies.
+    """
+    from agents.nodes import get_workout_days
+    planned_workouts = db.query(WorkoutPlanned).order_by(WorkoutPlanned.date.desc()).all()
+    workout_days = get_workout_days()
+    return templates.TemplateResponse(
+        request=request,
+        name="maintenance.html",
+        context={
+            "planned_workouts": planned_workouts,
+            "workout_days": workout_days
+        }
+    )
+
+
+from pydantic import BaseModel
+class UpdateStatusRequest(BaseModel):
+    status: str
+
+class UpdateDaysRequest(BaseModel):
+    lento_corto: str
+    medio: str
+    ripetute: str
+    lento_lungo: str
+
+@app.post("/api/maintenance/update-status/{workout_id}")
+def update_workout_status(workout_id: int, payload: UpdateStatusRequest, db: Session = Depends(get_db)):
+    """
+    Updates the status of a planned workout.
+    """
+    workout = db.query(WorkoutPlanned).filter(WorkoutPlanned.id == workout_id).first()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout non trovato")
+    
+    if payload.status not in ["planned", "completed", "skipped"]:
+        raise HTTPException(status_code=400, detail="Stato non valido")
+    
+    workout.status = payload.status
+    db.commit()
+    return {"status": "success", "workout_id": workout_id, "new_status": payload.status}
+
+
+@app.post("/api/maintenance/update-days")
+def update_workout_days(payload: UpdateDaysRequest):
+    """
+    Updates the planned workout days settings.
+    """
+    from agents.nodes import save_workout_days
+    days_data = {
+        "lento_corto": payload.lento_corto,
+        "medio": payload.medio,
+        "ripetute": payload.ripetute,
+        "lento_lungo": payload.lento_lungo
+    }
+    save_workout_days(days_data)
+    return {"status": "success", "workout_days": days_data}
 
 
 @app.get("/history", response_class=HTMLResponse)
@@ -1249,8 +1535,46 @@ async def upload_gpx(
     return RedirectResponse(url="/dashboard?uploaded=1", status_code=303)
 
 
+def send_telegram_message(message: str):
+    """
+    Sends a message to the Telegram chat configured in .env via the Telegram Bot API.
+    """
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not token:
+        logger_print("[Telegram] Missing TELEGRAM_BOT_TOKEN in environment variables.")
+        return
+    if not chat_id:
+        logger_print("[Telegram] Missing TELEGRAM_CHAT_ID in environment variables. Message not sent.")
+        return
+
+    import requests
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    try:
+        logger_print(f"[Telegram] Sending message to chat ID {chat_id}...")
+        r = requests.post(url, json=payload, timeout=10)
+        if r.status_code == 200:
+            logger_print("[Telegram] Message sent successfully.")
+        else:
+            logger_print(f"[Telegram] Failed to send message (HTTP {r.status_code}): {r.text}")
+            # Fallback to plain text in case of markdown formatting errors
+            payload.pop("parse_mode", None)
+            r = requests.post(url, json=payload, timeout=10)
+            if r.status_code == 200:
+                logger_print("[Telegram] Message sent successfully (fallback plain text).")
+            else:
+                logger_print(f"[Telegram] Failed to send message even with fallback: {r.text}")
+    except Exception as e:
+        logger_print(f"[Telegram] Error sending message: {e}")
+
+
 @app.post("/request-plan")
-def request_weekly_plan(request: Request, db: Session = Depends(get_db)):
+def request_weekly_plan(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
     Triggers the full agent pipeline with intent 'ask_plan'.
     Calls build_athlete_performance_profile() then the Trainer LLM
@@ -1271,6 +1595,9 @@ def request_weekly_plan(request: Request, db: Session = Depends(get_db)):
 
     weekly_plan = result.get("weekly_plan")
     response_message = result.get("response_message", "")
+
+    if response_message:
+        background_tasks.add_task(send_telegram_message, response_message)
 
     return {
         "status": "success",
@@ -1421,7 +1748,7 @@ def get_workout_detail(workout_id: int, request: Request, db: Session = Depends(
                     pace_fmt = f"{min_p}:{sec_p:02d}"
                     
                     splits.append({
-                        "lap_index": int(split_val + 1),
+                        "lap_index": int(split_val) + 1,
                         "duration_formatted": dur_fmt,
                         "pace_formatted": pace_fmt,
                         "avg_hr": int(hr_split) if hr_split > 0 else None,
@@ -1684,35 +2011,6 @@ def get_workout_detail(workout_id: int, request: Request, db: Session = Depends(
         }
     )
 
-
-@app.post("/workout/{workout_id}/delete")
-def delete_workout(workout_id: int, db: Session = Depends(get_db)):
-    """
-    Deletes a specific executed workout record and its associated GPX file.
-    """
-    workout = db.query(WorkoutExecuted).filter(WorkoutExecuted.id == workout_id).first()
-    if not workout:
-        raise HTTPException(status_code=404, detail="Allenamento non trovato")
-
-    # Try to delete the associated GPX file
-    date_prefix = workout.date.strftime("%Y%m%d")
-    for folder in ["./data/uploads", "./GPX"]:
-        if os.path.exists(folder):
-            for file in os.listdir(folder):
-                if file.startswith(date_prefix) and file.endswith(".gpx"):
-                    try:
-                        os.remove(os.path.join(folder, file))
-                        logger_print(f"Deleted GPX file: {file}")
-                    except Exception as e:
-                        logger_print(f"Could not delete GPX file {file}: {e}")
-                    break
-
-    db.delete(workout)
-    db.commit()
-    logger_print(f"Deleted workout id={workout_id}")
-    return RedirectResponse(url="/dashboard", status_code=303)
-
-
 @app.get("/profile", response_class=HTMLResponse)
 def get_athlete_profile(request: Request, db: Session = Depends(get_db)):
     # Age calculation: Born on September 1, 2001
@@ -1887,9 +2185,13 @@ def sync_garmin_scale(db: Session = Depends(get_db)):
         if not metric.steps:
             metric.steps = 10000
             
-        sleep_score = min(100.0, (metric.sleep_hours / 8.0) * 100.0)
-        hrv_score = min(100.0, max(0.0, 80.0 + ((metric.hrv_score - 65) * 2.0)))
-        rhr_score = min(100.0, max(0.0, 80.0 - ((metric.resting_hr - 55) * 3.0)))
+        sleep_val = metric.sleep_hours if metric.sleep_hours is not None else 8.0
+        hrv_val = metric.hrv_score if metric.hrv_score is not None else 65
+        rhr_val = metric.resting_hr if metric.resting_hr is not None else 55
+        
+        sleep_score = min(100.0, (sleep_val / 8.0) * 100.0)
+        hrv_score = min(100.0, max(0.0, 80.0 + ((hrv_val - 65) * 2.0)))
+        rhr_score = min(100.0, max(0.0, 80.0 - ((rhr_val - 55) * 3.0)))
         metric.readiness = round((sleep_score * 0.3) + (hrv_score * 0.4) + (rhr_score * 0.3), 1)
         
         db.commit()

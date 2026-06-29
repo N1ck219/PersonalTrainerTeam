@@ -69,6 +69,203 @@
             </div>
         </div>
         {% endif %}
+ 
+         <!-- METRICHE INTRADAY SAMSUNG HEALTH -->
+         {% if intraday_hr or intraday_sleep %}
+         <div class="glass-card" style="margin-top: 1.5rem; padding: 1.5rem; border-radius: 16px; margin-bottom: 1.5rem;">
+             <h2 class="card-title" style="margin-bottom: 0.25rem;">📊 Andamento Giornaliero (Samsung Health - {{ selected_date_str }})</h2>
+             <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 1.5rem;">Dati importati ad alta risoluzione da Samsung Health (Google Drive)</p>
+             
+             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem;">
+                 <!-- GRAFICO BATTITI INTRADAY -->
+                 {% if intraday_hr %}
+                 <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 12px; padding: 1rem;">
+                     <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.9rem; color: #fff; margin-bottom: 1rem; text-align: left;">📈 Frequenza Cardiaca Intraday (BPM)</h3>
+                     <div style="position: relative; height: 300px; width: 100%;">
+                         <canvas id="intradayHrChart"></canvas>
+                     </div>
+                 </div>
+                 {% endif %}
+                 
+                 <!-- SEZIONE DETTAGLI E GRAFICO SONNO -->
+                 {% if sleep_summary %}
+                 <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+                     <h3 style="font-family: 'Montserrat', sans-serif; font-size: 0.95rem; color: #fff; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px;">
+                         <span style="background: #7c3aed; width: 8px; height: 8px; border-radius: 50%;"></span> 🌙 Dettagli Sonno Notturno
+                     </h3>
+                     
+                     <div style="display: flex; gap: 1rem; flex-wrap: wrap; height: 100%; align-items: center;">
+                         <!-- Statistiche testuali -->
+                         <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 0.8rem;">
+                             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.3rem;">
+                                 <span style="color: var(--text-muted); font-size: 0.82rem;">Addormentato:</span>
+                                 <strong style="color: #fff; font-size: 0.85rem;">{{ sleep_summary.bedtime }}</strong>
+                             </div>
+                             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.3rem;">
+                                 <span style="color: var(--text-muted); font-size: 0.82rem;">Sveglio:</span>
+                                 <strong style="color: #fff; font-size: 0.85rem;">{{ sleep_summary.waketime }}</strong>
+                             </div>
+                             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.3rem;">
+                                 <span style="color: var(--text-muted); font-size: 0.82rem;">Tempo a Letto:</span>
+                                 <strong style="color: #fff; font-size: 0.85rem;">{{ sleep_summary.total_bedtime_hours }} ore</strong>
+                             </div>
+                             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.3rem;">
+                                 <span style="color: var(--text-muted); font-size: 0.82rem;">Sonno Effettivo:</span>
+                                 <strong style="color: #8b5cf6; font-size: 0.88rem;">{{ sleep_summary.duration_hours }} ore</strong>
+                             </div>
+                         </div>
+                         
+                         <!-- Doughnut Chart per le fasi -->
+                         <div style="width: 160px; height: 160px; position: relative; margin: auto;">
+                             <canvas id="sleepDoughnutChart"></canvas>
+                         </div>
+                     </div>
+                 </div>
+                 {% endif %}
+             </div>
+         </div>
+         
+         <script>
+             document.addEventListener('DOMContentLoaded', function() {
+                 Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
+                 Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+                 
+                 // 1. Render Heart Rate Intraday Chart (with Moving Average smoothing)
+                 {% if intraday_hr %}
+                 const hrDataRaw = {{ intraday_hr | tojson }};
+                 const hrLabels = hrDataRaw.map(d => d.time);
+                 const hrValues = hrDataRaw.map(d => d.bpm);
+                 
+                 // Calcolo media mobile semplice (SMA)
+                 const calculateSMA = (data, windowSize) => {
+                     let r = [];
+                     for (let i = 0; i < data.length; i++) {
+                         if (i < windowSize - 1) {
+                             // Fallback per i primi elementi
+                             let sum = 0;
+                             for (let j = 0; j <= i; j++) sum += data[j];
+                             r.push(sum / (i + 1));
+                         } else {
+                             let sum = 0;
+                             for (let j = 0; j < windowSize; j++) sum += data[i - j];
+                             r.push(sum / windowSize);
+                         }
+                     }
+                     return r;
+                 };
+                 
+                 const smoothedHrValues = calculateSMA(hrValues, 15);
+                 const avgHr = hrValues.reduce((a, b) => a + b, 0) / hrValues.length;
+                 const avgHrLine = Array(hrValues.length).fill(avgHr);
+                 
+                 new Chart(document.getElementById('intradayHrChart'), {
+                     type: 'line',
+                     data: {
+                         labels: hrLabels,
+                         datasets: [
+                             {
+                                 label: 'FC Smussata (Media 15m)',
+                                 data: smoothedHrValues,
+                                 borderColor: '#ff5722',
+                                 backgroundColor: 'transparent',
+                                 fill: false,
+                                 tension: 0.4,
+                                 pointRadius: 0,
+                                 borderWidth: 2.5,
+                                 order: 1
+                             },
+                             {
+                                 label: 'FC Istantanea',
+                                 data: hrValues,
+                                 borderColor: 'rgba(255, 87, 34, 0.18)',
+                                 backgroundColor: 'rgba(255, 87, 34, 0.04)',
+                                 fill: true,
+                                 tension: 0.4,
+                                 pointRadius: 0,
+                                 borderWidth: 1,
+                                 order: 2
+                             },
+                             {
+                                 label: 'Media Giornaliera',
+                                 data: avgHrLine,
+                                 borderColor: 'rgba(255, 255, 255, 0.4)',
+                                 borderDash: [5, 5],
+                                 backgroundColor: 'transparent',
+                                 fill: false,
+                                 pointRadius: 0,
+                                 borderWidth: 1.5,
+                                 order: 3
+                             }
+                         ]
+                     },
+                     options: {
+                         responsive: true,
+                         maintainAspectRatio: false,
+                         plugins: {
+                             legend: {
+                                 display: true,
+                                 position: 'top',
+                                 labels: { boxWidth: 12, font: { size: 10 } }
+                             }
+                         },
+                         scales: {
+                             y: {
+                                 suggestedMin: 40,
+                                 suggestedMax: 100,
+                                 grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                             },
+                             x: {
+                                 grid: { display: false },
+                                 ticks: { maxTicksLimit: 12 }
+                             }
+                         }
+                     }
+                 });
+                 {% endif %}
+ 
+                 // 2. Render Sleep Stages Doughnut Chart
+                 {% if sleep_summary %}
+                 const sleepSummary = {{ sleep_summary | tojson }};
+                 const stageLabels = ['Profondo', 'REM', 'Leggero', 'Veglia'];
+                 const stageValues = [
+                     sleepSummary.durations_min.deep,
+                     sleepSummary.durations_min.rem,
+                     sleepSummary.durations_min.light,
+                     sleepSummary.durations_min.awake
+                 ];
+                 
+                 new Chart(document.getElementById('sleepDoughnutChart'), {
+                     type: 'doughnut',
+                     data: {
+                         labels: stageLabels,
+                         datasets: [{
+                             data: stageValues,
+                             backgroundColor: ['#7c3aed', '#06b6d4', '#a78bfa', '#f97316'],
+                             borderWidth: 0
+                         }]
+                     },
+                     options: {
+                         responsive: true,
+                         maintainAspectRatio: false,
+                         cutout: '65%',
+                         plugins: {
+                             legend: { display: false },
+                             tooltip: {
+                                 callbacks: {
+                                     label: function(context) {
+                                         const label = context.label || '';
+                                         const val = context.raw || 0;
+                                         return ` ${label}: ${val} min`;
+                                     }
+                                 }
+                             }
+                         }
+                     }
+                 });
+                 {% endif %}
+             });
+         </script>
+         {% endif %}
 
         <!-- MAIN LAYOUT -->
         <div class="dashboard-grid">
@@ -390,13 +587,15 @@
                         </div>
 
                         <button type="submit" class="btn-submit"
-                            style="background: linear-gradient(135deg, var(--color-purple), var(--color-pink)); border: none; padding: 0.75rem 1.5rem; font-weight: 700; border-radius: 8px; width: 100%; color: white; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(236,72,153,0.3);">Carica
-                            e Analizza Traccia</button>
-                    </form>
-                </div>
-            </div>
-
-        </div>    </div> <!-- Close container -->
+                             style="background: linear-gradient(135deg, var(--color-purple), var(--color-pink)); border: none; padding: 0.75rem 1.5rem; font-weight: 700; border-radius: 8px; width: 100%; color: white; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(236,72,153,0.3);">Carica
+                             e Analizza Traccia</button>
+                     </form>
+                 </div>
+             </div>
+ 
+         </div>
+ 
+     </div> <!-- Close container -->
 
     <!-- Form Toggling & Laps Details Script -->
     <script>
@@ -431,6 +630,20 @@
                 warmupSection.style.display = 'block';
                 cooldownSection.style.display = 'block';
                 ripetuteSection.style.display = 'none';
+                
+                // Auto-preset warmup/cooldown of 2.0 km for medio if not manually edited
+                if (warmupCheckbox && !warmupCheckbox.dataset.manuallyToggled) {
+                    warmupCheckbox.checked = true;
+                    warmupFields.style.display = 'grid';
+                    document.getElementById('warmup_type').value = 'distance';
+                    document.getElementById('warmup_value').value = '2.0';
+                }
+                if (cooldownCheckbox && !cooldownCheckbox.dataset.manuallyToggled) {
+                    cooldownCheckbox.checked = true;
+                    if (cooldownFields) cooldownFields.style.display = 'grid';
+                    document.getElementById('cooldown_type').value = 'distance';
+                    document.getElementById('cooldown_value').value = '2.0';
+                }
             } else {
                 warmupSection.style.display = 'none';
                 cooldownSection.style.display = 'none';
@@ -449,11 +662,13 @@
 
         if (warmupCheckbox) {
             warmupCheckbox.addEventListener('change', function () {
+                this.dataset.manuallyToggled = 'true';
                 warmupFields.style.display = this.checked ? 'grid' : 'none';
             });
         }
         if (cooldownCheckbox) {
             cooldownCheckbox.addEventListener('change', function () {
+                this.dataset.manuallyToggled = 'true';
                 updateCooldownFields();
             });
         }
@@ -570,7 +785,10 @@
 
             // Determine which session is next (soonest future date)
             const todayWD = new Date().getDay(); // 0=Sun
-            const WD_MAP = { 'Martedì': 2, 'Giovedì': 4, 'Sabato': 6, 'Domenica': 0 };
+            const WD_MAP = {
+                'Lunedì': 1, 'Martedì': 2, 'Mercoledì': 3, 'Giovedì': 4,
+                'Venerdì': 5, 'Sabato': 6, 'Domenica': 0
+            };
             let nextSessionType = null;
             let minDiff = 99;
             for (const s of (plan.sessions || [])) {
@@ -723,6 +941,9 @@
                 </a>
                 <a href="/nutrition" class="sidebar-nav-link">
                     <span class="nav-icon">🥗</span> Alimentazione
+                </a>
+                <a href="/maintenance" class="sidebar-nav-link">
+                    <span class="nav-icon">⚙️</span> Manutenzione
                 </a>
             </div>
 
