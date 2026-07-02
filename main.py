@@ -94,6 +94,10 @@ def logger_print(message: str):
 @app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
 @app.get("/favicon.png", include_in_schema=False)
 def favicon():
+    from fastapi.responses import FileResponse
+    favicon_path = "static/favicon.png"
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path)
     from fastapi import Response
     return Response(status_code=204)
 
@@ -1532,7 +1536,9 @@ async def upload_gpx(
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Errore durante l'elaborazione del file GPX: {str(e)}")
         
-    return RedirectResponse(url="/dashboard?uploaded=1", status_code=303)
+    return RedirectResponse(url=f"/workout/{executed.id}?uploaded=1", status_code=303)
+
+
 
 
 def send_telegram_message(message: str):

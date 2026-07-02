@@ -153,6 +153,34 @@
             </div>
         </div>
     </div>
+    <!-- Success Toast -->
+    <div id="toast-success" style="
+        display: none;
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 1000;
+        background: rgba(16, 185, 129, 0.15);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        color: #fff;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: opacity 0.3s ease;
+    ">
+        <span style="font-size: 1.25rem;">✅</span>
+        <div>
+            <strong style="color: var(--color-green);">Attività Caricata!</strong>
+            <p style="margin: 0.1rem 0 0 0; font-size: 0.78rem; color: var(--text-secondary);">La traccia GPX è stata elaborata e analizzata con successo.</p>
+        </div>
+    </div>
+
     <script>
         function toggleSidebar() {
             const drawer = document.getElementById('sidebar-drawer');
@@ -162,7 +190,27 @@
                 overlay.classList.toggle('active');
             }
         }
+
+        // Show success toast if query parameter is present
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('uploaded') === '1') {
+                const toast = document.getElementById('toast-success');
+                if (toast) {
+                    toast.style.display = 'flex';
+                    // Remove the query parameter from URL bar without reloading
+                    const newUrl = window.location.pathname;
+                    window.history.replaceState({}, document.title, newUrl);
+                    // Hide after 5 seconds
+                    setTimeout(() => {
+                        toast.style.opacity = '0';
+                        setTimeout(() => { toast.style.display = 'none'; }, 300);
+                    }, 5000);
+                }
+            }
+        });
     </script>
 </body>
 
 </html>
+
